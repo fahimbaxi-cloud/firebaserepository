@@ -48,6 +48,7 @@ export default function AdminLayout({
           router.replace('/');
         }
       } catch (e) {
+        console.error(e);
         router.replace('/');
       }
     };

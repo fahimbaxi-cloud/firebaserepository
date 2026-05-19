@@ -65,6 +65,7 @@ export default function MenuManagement() {
       });
       setFormItem({ ...formItem, description: result.description });
     } catch (error) {
+      console.error(error);
       toast({ title: "Error", description: "Failed to generate description.", variant: "destructive" });
     } finally {
       setIsGenerating(false);

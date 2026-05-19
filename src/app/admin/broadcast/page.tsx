@@ -208,6 +208,7 @@ export default function BroadcastPage() {
         throw new Error('No message generated');
       }
     } catch (error) {
+      console.error(error);
       toast({ title: "Generation Failed", description: "The AI service encountered an issue. Please check item details.", variant: "destructive" });
     } finally {
       setIsGenerating(false);
@@ -282,6 +283,7 @@ export default function BroadcastPage() {
           setDailySelectedItems(pkg.items || []);
         }
       } catch (e) {
+        console.error(e);
         setSelectedDate(new Date());
       }
     } else if (pkg.type === 'monthly' && pkg.dateContext) {
@@ -292,7 +294,9 @@ export default function BroadcastPage() {
           setCurrentYear(getYear(date));
           setMonthlyAssignments({});
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error(e);
+      }
     }
     
     setView('edit');

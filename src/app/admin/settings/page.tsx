@@ -82,6 +82,7 @@ export default function AdminSettings() {
           router.replace('/');
         }
       } catch (e) {
+        console.error(e);
         router.replace('/');
       }
     };
@@ -129,6 +130,7 @@ export default function AdminSettings() {
       }
       toast({ title: "Operational Data Cleared", description: "All historical transactions have been removed." });
     } catch (e) {
+      console.error(e);
       toast({ title: "Operation Error", description: "Failed to clear transaction records.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
@@ -142,6 +144,7 @@ export default function AdminSettings() {
       for (const col of MASTER_COLLECTIONS) await clearCollection(col);
       toast({ title: "Masters & History Reset", description: "Database reset to base user directory." });
     } catch (e) {
+      console.error(e);
       toast({ title: "Reset Error", description: "Full system reset failed.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
@@ -156,6 +159,7 @@ export default function AdminSettings() {
       await clearCollection('users', true);
       toast({ title: "Total Wipe Complete", description: "Database cleared except for Super Admins." });
     } catch (e) {
+      console.error(e);
       toast({ title: "Wipe Interrupted", description: "Wipe process failed.", variant: "destructive" });
     } finally {
       setIsProcessing(false);

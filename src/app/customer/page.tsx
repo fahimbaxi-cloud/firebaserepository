@@ -194,6 +194,7 @@ export default function CustomerHome() {
           return now >= subscriptionDeadline;
         }
       } catch (e) {
+        console.error(e);
         return false;
       }
     }).map(p => p.id);

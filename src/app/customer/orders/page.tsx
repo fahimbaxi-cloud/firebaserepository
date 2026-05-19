@@ -220,6 +220,7 @@ export default function CustomerOrdersPage() {
         const cutoff = setHours(subDays(startOfDay(targetDate), 1), 19);
         return isAfter(now, cutoff) || order.status !== 'Pending';
       } catch (e) {
+        console.error(e);
         return order.status !== 'Pending';
       }
     } else {
@@ -230,6 +231,7 @@ export default function CustomerOrdersPage() {
         cutoff.setDate(8);
         return isAfter(now, cutoff) || order.status !== 'Pending';
       } catch (e) {
+        console.error(e);
         return order.status !== 'Pending';
       }
     }

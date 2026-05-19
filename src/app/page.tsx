@@ -250,7 +250,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Change Password</Label>
                 <Link href="/forgot-password">
                   <span className="text-xs text-primary font-bold hover:underline">Forgot?</span>
                 </Link>
