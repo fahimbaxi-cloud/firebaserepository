@@ -1,0 +1,13 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permission sync update: 2025-05-22 11:45 (Force Redeploy - Fixing Units Collection Access)
+    // This allows full public read/write access for prototype development.
+    // NOTE: Firestore documents have a strict 1MB size limit. 
+    // These rules apply to all databases in the project, including '(default)' and 'baccha1'.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

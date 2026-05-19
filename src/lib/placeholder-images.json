@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "app-logo",
+      "description": "Official BacchaBite circular logo featuring an orange school bag with a smiley face, a sun icon, and blue cutlery.",
+      "imageUrl": "/logo.png",
+      "imageHint": "school lunch logo"
+    },
+    {
+      "id": "healthy-breakfast",
+      "description": "A colorful healthy breakfast bowl for kids with fruits and oatmeal.",
+      "imageUrl": "https://picsum.photos/seed/bb1/600/400",
+      "imageHint": "healthy breakfast"
+    },
+    {
+      "id": "veggie-pasta",
+      "description": "Kid-friendly vegetable pasta with bright sauce.",
+      "imageUrl": "https://picsum.photos/seed/bb2/600/400",
+      "imageHint": "vegetable pasta"
+    },
+    {
+      "id": "fruit-snack",
+      "description": "Fun shaped fruit snacks for children.",
+      "imageUrl": "https://picsum.photos/seed/bb3/600/400",
+      "imageHint": "fruit snack"
+    },
+    {
+      "id": "lunch-box",
+      "description": "A well-packed school lunch box with diverse food groups.",
+      "imageUrl": "https://picsum.photos/seed/bb4/600/400",
+      "imageHint": "lunch box"
+    },
+    {
+      "id": "monthly-special",
+      "description": "The featured nutritious bento box for the current month.",
+      "imageUrl": "https://picsum.photos/seed/bb-monthly/600/400",
+      "imageHint": "kids bento box"
+    }
+  ]
+}

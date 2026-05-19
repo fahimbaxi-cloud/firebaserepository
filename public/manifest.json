@@ -1,0 +1,23 @@
+{
+  "name": "BacchaBite | Healthy Kids Food",
+  "short_name": "BacchaBite",
+  "description": "Daily meal ordering and subscription platform for busy parents and happy kids.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FCF5F3",
+  "theme_color": "#EB7E47",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

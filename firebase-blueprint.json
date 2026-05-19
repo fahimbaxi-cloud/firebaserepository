@@ -1,0 +1,253 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile within the application.",
+      "properties": {
+        "id": { "type": "string" },
+        "bacchabiteId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "mobileNumber": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "admin", "delivery", "super-admin"] },
+        "address": { "type": "string" },
+        "password": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "type": "object",
+      "description": "Global application branding and configuration settings.",
+      "properties": {
+        "id": { "type": "string" },
+        "faviconUrl": { "type": "string" },
+        "appIconUrl": { "type": "string" },
+        "webAppIconUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents a single message in the chat board.",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "text": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Mail": {
+      "title": "Mail",
+      "type": "object",
+      "description": "Document to trigger an email via Firebase Extension.",
+      "properties": {
+        "to": { "type": "string" },
+        "message": {
+          "type": "object",
+          "properties": {
+            "subject": { "type": "string" },
+            "text": { "type": "string" },
+            "html": { "type": "string" }
+          }
+        }
+      }
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Veg", "Non-Veg"] },
+        "slot": { "type": "string", "enum": ["Morning", "Noon"] },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rawItemId": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitId": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "BroadcastPackage": {
+      "title": "BroadcastPackage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily", "monthly"] },
+        "dateContext": { "type": "string" },
+        "itemsCount": { "type": "number" },
+        "price": { "type": "number" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "items": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "packageName": { "type": "string" },
+        "packageQuantity": { "type": "number" },
+        "address": { "type": "string" },
+        "mobile": { "type": "string" },
+        "total": { "type": "number" },
+        "type": { "type": "string", "enum": ["Daily", "Subscription"] },
+        "slot": { "type": "string", "enum": ["Morning", "Noon"] },
+        "deliveryTime": { "type": "string" },
+        "status": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "date": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "Payment": {
+      "title": "Payment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "date": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "CustomerReceipt": {
+      "title": "CustomerReceipt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" }
+      }
+    },
+    "ManufacturingLog": {
+      "title": "ManufacturingLog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "packageName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "date": { "type": "string" }
+      }
+    },
+    "GeneralTransaction": {
+      "title": "GeneralTransaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" }
+      }
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "debitAccountName": { "type": "string" },
+        "creditAccountName": { "type": "string" },
+        "amount": { "type": "number" }
+      }
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" }
+      }
+    },
+    "RawItem": {
+      "title": "RawItem",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "currentStock": { "type": "number" }
+      }
+    },
+    "GLAccount": {
+      "title": "GLAccount",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string" },
+        "openingBalance": { "type": "number" },
+        "openingType": { "type": "string", "enum": ["Debit", "Credit"] }
+      }
+    },
+    "Unit": { "title": "Unit", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "Category": { "title": "Category", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "ExpenseCategory": { "title": "ExpenseCategory", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "IncomeCategory": { "title": "IncomeCategory", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } }
+  },
+  "auth": {
+    "providers": ["password", "anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/backend/entities/User" }, "description": "User profiles." },
+    "/settings/{configId}": { "schema": { "$ref": "#/backend/entities/AppConfig" }, "description": "Global settings." },
+    "/chats/{chatId}": { "schema": { "$ref": "#/backend/entities/ChatMessage" }, "description": "Support chat messages." },
+    "/mail/{mailId}": { "schema": { "$ref": "#/backend/entities/Mail" }, "description": "Outbound email triggers." },
+    "/menu_items/{itemId}": { "schema": { "$ref": "#/backend/entities/MenuItem" }, "description": "Menu items." },
+    "/packages/{packageId}": { "schema": { "$ref": "#/backend/entities/BroadcastPackage" }, "description": "Broadcasted packages." },
+    "/orders/{orderId}": { "schema": { "$ref": "#/backend/entities/Order" }, "description": "Customer orders." },
+    "/purchases/{purchaseId}": { "schema": { "$ref": "#/backend/entities/Purchase" }, "description": "Purchase records." },
+    "/payments/{paymentId}": { "schema": { "$ref": "#/backend/entities/Payment" }, "description": "Payment records." },
+    "/receipts/{receiptId}": { "schema": { "$ref": "#/backend/entities/CustomerReceipt" }, "description": "Receipt records." },
+    "/manufacturing_logs/{logId}": { "schema": { "$ref": "#/backend/entities/ManufacturingLog" }, "description": "Manufacturing logs." },
+    "/general_transactions/{txId}": { "schema": { "$ref": "#/backend/entities/GeneralTransaction" }, "description": "Income/Expense entries." },
+    "/journal_entries/{jvId}": { "schema": { "$ref": "#/backend/entities/JournalEntry" }, "description": "Journal entries." },
+    "/suppliers/{supplierId}": { "schema": { "$ref": "#/backend/entities/Supplier" }, "description": "Supplier records." },
+    "/raw_items/{rawItemId}": { "schema": { "$ref": "#/backend/entities/RawItem" }, "description": "Raw material items." },
+    "/gl_accounts/{accountId}": { "schema": { "$ref": "#/backend/entities/GLAccount" }, "description": "General Ledger accounts." },
+    "/units/{unitId}": { "schema": { "$ref": "#/backend/entities/Unit" }, "description": "Measurement units." },
+    "/categories/{categoryId}": { "schema": { "$ref": "#/backend/entities/Category" }, "description": "Raw item categories." },
+    "/expense_categories/{catId}": { "schema": { "$ref": "#/backend/entities/ExpenseCategory" }, "description": "Expense categories." },
+    "/income_categories/{catId}": { "schema": { "$ref": "#/backend/entities/IncomeCategory" }, "description": "Income categories." }
+  }
+}
