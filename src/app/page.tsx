@@ -23,7 +23,15 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { BroadcastPackage } from '@/lib/types';
-import { format, addDays } from 'date-fns';
+import { 
+  Carousel, 
+  CarouselContent, 
+  CarouselItem, 
+  CarouselNext, 
+  CarouselPrevious 
+} from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+import { format, addDays, addMonths, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -41,28 +49,35 @@ export default function LoginPage() {
   const packagesQuery = useMemoFirebase(() => collection(firestore, 'packages'), [firestore]);
   const { data: packages = [] } = useCollection<BroadcastPackage>(packagesQuery);
 
-  const featuredPackage = useMemo(() => {
-    if (!packages || packages.length === 0) return null;
+  const carouselPackages = useMemo(() => {
+    if (!packages || packages.length === 0) return [];
     const now = new Date();
+    const list: BroadcastPackage[] = [];
     
-    // Priority 1: Current Month Subscription
+    // 1. Current Month Subscription
     const currentMonthStr = format(now, 'MMMM yyyy');
-    const monthSub = packages.find(p => p.type === 'monthly' && p.dateContext === currentMonthStr);
-    if (monthSub) return monthSub;
+    const currentMonthSub = packages.find(p => p.type === 'monthly' && p.dateContext === currentMonthStr);
+    if (currentMonthSub) list.push(currentMonthSub);
     
-    // Priority 2: Tomorrow's Daily Special
+    // 2. Days from tomorrow to end of month
     const tomorrow = addDays(now, 1);
-    const tomorrowStr = format(tomorrow, 'MMMM d, yyyy');
-    const tomorrowPkg = packages.find(p => p.type === 'daily' && p.dateContext === tomorrowStr);
-    if (tomorrowPkg) return tomorrowPkg;
+    const monthEnd = endOfMonth(now);
     
-    // Priority 3: Day after Tomorrow
-    const dayAfter = addDays(now, 2);
-    const dayAfterStr = format(dayAfter, 'MMMM d, yyyy');
-    const dayAfterPkg = packages.find(p => p.type === 'daily' && p.dateContext === dayAfterStr);
-    if (dayAfterPkg) return dayAfterPkg;
+    if (tomorrow <= monthEnd) {
+      const remainingDays = eachDayOfInterval({ start: tomorrow, end: monthEnd });
+      remainingDays.forEach(day => {
+        const dayStr = format(day, 'MMMM d, yyyy');
+        const dayPkg = packages.find(p => p.type === 'daily' && p.dateContext === dayStr);
+        if (dayPkg) list.push(dayPkg);
+      });
+    }
     
-    return null;
+    // 3. Next Month Subscription
+    const nextMonthStr = format(addMonths(now, 1), 'MMMM yyyy');
+    const nextMonthSub = packages.find(p => p.type === 'monthly' && p.dateContext === nextMonthStr);
+    if (nextMonthSub) list.push(nextMonthSub);
+    
+    return list;
   }, [packages]);
 
   useEffect(() => {
@@ -172,58 +187,79 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="px-8 pb-8">
           <form onSubmit={handleLogin} className="space-y-5">
-            {featuredPackage && (
-              <div className="rounded-3xl overflow-hidden border border-secondary shadow-md bg-white mb-4 group cursor-default">
-                <div className="relative h-44 w-full group/image">
-                  <Image 
-                    src={featuredPackage.imageUrl || "https://picsum.photos/seed/featured/600/400"} 
-                    alt={featuredPackage.name} 
-                    fill 
-                    className="object-cover transition-transform duration-700 group-hover/image:scale-105"
-                    data-ai-hint="healthy kid meal"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10">
-                        <ZoomIn className="w-8 h-8 text-white" />
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
-                      <DialogHeader className="sr-only">
-                        <DialogTitle>{featuredPackage.name}</DialogTitle>
-                        <DialogDescription>Full view of the package image</DialogDescription>
-                      </DialogHeader>
-                      <div className="relative w-full aspect-video rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
-                        <Image 
-                          src={featuredPackage.imageUrl || "https://picsum.photos/seed/featured/600/400"} 
-                          alt={featuredPackage.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+            {carouselPackages.length > 0 && (
+              <div className="mb-6 relative px-10">
+                <Carousel 
+                  className="w-full"
+                  plugins={[
+                    Autoplay({
+                      delay: 10000,
+                    }),
+                  ]}
+                >
+                  <CarouselContent>
+                    {carouselPackages.map((pkg, idx) => (
+                      <CarouselItem key={pkg.id || idx}>
+                        <div className="rounded-3xl overflow-hidden border border-secondary shadow-md bg-white group cursor-default">
+                          <div className="relative h-44 w-full group/image">
+                            <Image 
+                              src={pkg.imageUrl || "https://picsum.photos/seed/featured/600/400"} 
+                              alt={pkg.name} 
+                              fill 
+                              className="object-cover transition-transform duration-700 group-hover/image:scale-105"
+                              data-ai-hint="healthy kid meal"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <button className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-10">
+                                  <ZoomIn className="w-8 h-8 text-white" />
+                                </button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+                                <DialogHeader className="sr-only">
+                                  <DialogTitle>{pkg.name}</DialogTitle>
+                                  <DialogDescription>Full view of the package image</DialogDescription>
+                                </DialogHeader>
+                                <div className="relative w-full aspect-video rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
+                                  <Image 
+                                    src={pkg.imageUrl || "https://picsum.photos/seed/featured/600/400"} 
+                                    alt={pkg.name}
+                                    fill
+                                    className="object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              </DialogContent>
+                            </Dialog>
 
-                  <div className="absolute top-4 left-4">
-                    <div className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-lg border border-white/20",
-                      featuredPackage.type === 'monthly' ? "bg-accent" : "bg-primary"
-                    )}>
-                      {featuredPackage.type === 'monthly' ? <Sparkles className="w-3 h-3 text-white" /> : <CalendarDays className="w-3 h-3 text-white" />}
-                      <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                        {featuredPackage.dateContext} {featuredPackage.type === 'monthly' ? 'Plan' : 'Special'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-white font-bold text-lg leading-tight">{featuredPackage.name}</h3>
-                    <p className="text-white/80 text-[10px] font-medium mt-0.5 line-clamp-1">
-                      {featuredPackage.message}
-                    </p>
-                  </div>
-                </div>
+                            <div className="absolute top-4 left-4">
+                              <div className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-lg border border-white/20",
+                                pkg.type === 'monthly' ? "bg-accent" : "bg-primary"
+                              )}>
+                                {pkg.type === 'monthly' ? <Sparkles className="w-3 h-3 text-white" /> : <CalendarDays className="w-3 h-3 text-white" />}
+                                <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                                  {pkg.dateContext} {pkg.type === 'monthly' ? 'Plan' : 'Special'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="absolute bottom-4 left-4 right-4 text-left">
+                              <h3 className="text-white font-bold text-lg leading-tight">{pkg.name}</h3>
+                              <p className="text-white/80 text-[10px] font-medium mt-0.5 line-clamp-1">
+                                {pkg.message}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="-left-8 h-8 w-8" />
+                  <CarouselNext className="-right-8 h-8 w-8" />
+                </Carousel>
               </div>
             )}
 
