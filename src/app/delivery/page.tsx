@@ -205,58 +205,12 @@ export default function DeliveryDashboard() {
     const pkg = allPackages.find((p: any) => p.name === order.packageName);
     if (pkg) {
       if (pkg.type === 'monthly' && pkg.items) {
-        let matchedItemIds: string[] = [];
-        
-        // 1. Try to use structured dayItems if available
-        if (pkg.dayItems) {
-          const dateKey = format(targetDate, 'yyyy-MM-dd');
-          if (pkg.dayItems[dateKey] && pkg.dayItems[dateKey].length > 0) {
-            matchedItemIds = pkg.dayItems[dateKey];
-          } else {
-            const dayNum = targetDate.getDate().toString();
-            if (pkg.dayItems[dayNum] && pkg.dayItems[dayNum].length > 0) {
-              matchedItemIds = pkg.dayItems[dayNum];
-            }
-          }
-        }
-        
-        // 2. If no matchedItemIds, fall back to index/modulo mapping
-        if (matchedItemIds.length === 0) {
-          const dayOfMonth = targetDate.getDate();
-          const itemsCount = pkg.items.length;
-          
-          if (itemsCount > 31) {
-            // Check if it's a multiple of 30 days
-            const daysInMonthCount = 30;
-            const itemsPerDay = Math.floor(itemsCount / daysInMonthCount);
-            if (itemsPerDay > 1) {
-              const startIdx = (dayOfMonth - 1) * itemsPerDay;
-              for (let offset = 0; offset < itemsPerDay; offset++) {
-                const itemIdx = (startIdx + offset) % itemsCount;
-                if (pkg.items[itemIdx]) {
-                  matchedItemIds.push(pkg.items[itemIdx]);
-                }
-              }
-            }
-          }
-          
-          if (matchedItemIds.length === 0) {
-            const idx = (dayOfMonth - 1) % itemsCount;
-            if (pkg.items[idx]) {
-              matchedItemIds.push(pkg.items[idx]);
-            }
-          }
-        }
-        
-        if (matchedItemIds.length > 0) {
-          return matchedItemIds.map((id: string) => {
-            const menuItem = menu.find((m: any) => m.id === id);
-            return {
-              name: menuItem?.name || "Unknown Item",
-              type: menuItem?.type || "Veg",
-              quantity: order.packageQuantity || 1
-            };
-          });
+        const dayOfMonth = targetDate.getDate();
+        const idx = (dayOfMonth - 1) % pkg.items.length;
+        const id = pkg.items[idx];
+        const menuItem = menu.find((m: any) => m.id === id);
+        if (menuItem) {
+          return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
         }
       } else if (pkg.items) {
         return pkg.items.map((id: string) => {
@@ -697,14 +651,6 @@ export default function DeliveryDashboard() {
                             : (selectedOrderForDetails.packageName || "Custom")}
                         </p>
                         <p className="font-black text-blue-600 mt-2">{selectedOrderForDetails.packageQuantity || 1} Sets</p>
-                        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1.5">
-                          {getPackageItems(selectedOrderForDetails, selectedDate || new Date()).map((item: any, i: number) => (
-                            <div key={i} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                              {item.type === 'Veg' ? <Leaf className="w-3.5 h-3.5 text-green-500 shrink-0" /> : <Flame className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                              <span>{item.quantity}x {item.name}</span>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     </div>
                   </div>

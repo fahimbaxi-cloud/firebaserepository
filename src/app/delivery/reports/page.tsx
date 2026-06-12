@@ -269,70 +269,14 @@ export default function DeliveryReportsPage() {
     setColFilters(prev => ({ ...prev, [key]: val }));
   };
 
-  const getPackageItems = (order: Order, targetDate: Date = new Date()) => {
+  const getPackageItems = (order: Order) => {
     if (!allPackages || !menu) return [];
-    const pkg = allPackages.find((p: any) => p.name === order.packageName);
-    if (pkg) {
-      if (pkg.type === 'monthly' && pkg.items) {
-        let matchedItemIds: string[] = [];
-        
-        // 1. Try to use structured dayItems if available
-        if (pkg.dayItems) {
-          const dateKey = format(targetDate, 'yyyy-MM-dd');
-          if (pkg.dayItems[dateKey] && pkg.dayItems[dateKey].length > 0) {
-            matchedItemIds = pkg.dayItems[dateKey];
-          } else {
-            const dayNum = targetDate.getDate().toString();
-            if (pkg.dayItems[dayNum] && pkg.dayItems[dayNum].length > 0) {
-              matchedItemIds = pkg.dayItems[dayNum];
-            }
-          }
-        }
-        
-        // 2. If no matchedItemIds, fall back to index/modulo mapping
-        if (matchedItemIds.length === 0) {
-          const dayOfMonth = targetDate.getDate();
-          const itemsCount = pkg.items.length;
-          
-          if (itemsCount > 31) {
-            // Check if it's a multiple of 30 days
-            const daysInMonthCount = 30;
-            const itemsPerDay = Math.floor(itemsCount / daysInMonthCount);
-            if (itemsPerDay > 1) {
-              const startIdx = (dayOfMonth - 1) * itemsPerDay;
-              for (let offset = 0; offset < itemsPerDay; offset++) {
-                const itemIdx = (startIdx + offset) % itemsCount;
-                if (pkg.items[itemIdx]) {
-                  matchedItemIds.push(pkg.items[itemIdx]);
-                }
-              }
-            }
-          }
-          
-          if (matchedItemIds.length === 0) {
-            const idx = (dayOfMonth - 1) % itemsCount;
-            if (pkg.items[idx]) {
-              matchedItemIds.push(pkg.items[idx]);
-            }
-          }
-        }
-        
-        if (matchedItemIds.length > 0) {
-          return matchedItemIds.map((id: string) => {
-            const menuItem = menu.find((m: any) => m.id === id);
-            return {
-              name: menuItem?.name || "Unknown Item",
-              type: menuItem?.type || "Veg",
-              quantity: order.packageQuantity || 1
-            };
-          });
-        }
-      } else if (pkg.items) {
-        return pkg.items.map((id: string) => {
-          const menuItem = menu.find((m: any) => m.id === id);
-          return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-        });
-      }
+    const pkg = allPackages.find(p => p.name === order.packageName);
+    if (pkg && pkg.items) {
+      return pkg.items.map((id: string) => {
+        const menuItem = menu.find(m => m.id === id);
+        return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
+      });
     }
     return order.items || [];
   };
@@ -584,23 +528,10 @@ export default function DeliveryReportsPage() {
                       </div>
                       <div className="space-y-4">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Package Overview</Label>
-                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
-                          <div className="flex items-center justify-between pb-3 border-b border-blue-100">
+                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2"><Package className="w-5 h-5 text-blue-600" /><p className="font-black text-slate-900">{selectedOrderDetails.packageName || "Custom"}</p></div>
                             <Badge className="bg-blue-600 text-white border-none font-black text-sm">{selectedOrderDetails.packageQuantity || 1} Sets</Badge>
-                          </div>
-                          <div className="space-y-1.5 pt-1">
-                            {(() => {
-                              const orderDate = typeof selectedOrderDetails.createdAt === 'string' 
-                                ? parseISO(selectedOrderDetails.createdAt) 
-                                : selectedOrderDetails.createdAt;
-                              return getPackageItems(selectedOrderDetails, orderDate).map((item: any, i: number) => (
-                                <div key={i} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1 shrink-0" />
-                                  <span>{item.quantity}x {item.name} ({item.type})</span>
-                                </div>
-                              ));
-                            })()}
                           </div>
                         </div>
                       </div>
