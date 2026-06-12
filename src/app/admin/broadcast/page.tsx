@@ -226,6 +226,7 @@ export default function BroadcastPage() {
       : format(new Date(currentYear, currentMonth), 'MMMM yyyy');
 
     let finalItems: string[] = [];
+    const dayItems: Record<string, string[]> = {};
     if (broadcastType === 'daily') {
       finalItems = dailySelectedItems;
     } else {
@@ -235,6 +236,8 @@ export default function BroadcastPage() {
         const itemsForDay = monthlyAssignments[key] || [];
         if (itemsForDay.length > 0) {
           finalItems.push(...itemsForDay);
+          dayItems[key] = itemsForDay;
+          dayItems[day.getDate().toString()] = itemsForDay;
         }
       });
     }
@@ -248,6 +251,7 @@ export default function BroadcastPage() {
       message: message,
       imageUrl: imagePreview || null,
       items: finalItems,
+      dayItems: broadcastType === 'monthly' ? dayItems : null,
       updatedAt: new Date().toISOString()
     };
 
@@ -292,7 +296,15 @@ export default function BroadcastPage() {
         if (isValid(date)) {
           setCurrentMonth(getMonth(date));
           setCurrentYear(getYear(date));
-          setMonthlyAssignments({});
+          const loadedAssignments: Record<string, string[]> = {};
+          if ((pkg as any).dayItems) {
+            Object.keys((pkg as any).dayItems).forEach(k => {
+              if (k.includes('-')) {
+                loadedAssignments[k] = (pkg as any).dayItems[k];
+              }
+            });
+          }
+          setMonthlyAssignments(loadedAssignments);
         }
       } catch (e) {
         console.error(e);
