@@ -76,7 +76,7 @@ export default function DeliveryDashboard() {
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [customRouteOrder, setCustomRouteOrder] = useState<string[]>([]);
   
   const [activeFilters, setActiveFilters] = useState({
@@ -160,7 +160,9 @@ export default function DeliveryDashboard() {
       idx + 1,
       `ID: #${o.id.substr(0,8)}\nSlot: ${o.slot}\nTime: ${o.deliveryTime}`,
       `${o.customerName}\nAddr: ${o.address}\nTel: ${o.mobile}`,
-      o.packageName || 'Custom Meal',
+      o.type === 'Subscription' 
+        ? `${o.packageName || 'Subscription'} (Day ${(selectedDate || new Date()).getDate()})` 
+        : (o.packageName || 'Custom Meal'),
       o.packageQuantity || 1,
       o.status
     ]);
@@ -198,14 +200,24 @@ export default function DeliveryDashboard() {
     </div>
   );
 
-  const getPackageItems = (order: Order) => {
+  const getPackageItems = (order: Order, targetDate: Date = new Date()) => {
     if (!allPackages || !menu) return [];
     const pkg = allPackages.find((p: any) => p.name === order.packageName);
-    if (pkg && pkg.items) {
-      return pkg.items.map((id: string) => {
+    if (pkg) {
+      if (pkg.type === 'monthly' && pkg.items) {
+        const dayOfMonth = targetDate.getDate();
+        const idx = (dayOfMonth - 1) % pkg.items.length;
+        const id = pkg.items[idx];
         const menuItem = menu.find((m: any) => m.id === id);
-        return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-      });
+        if (menuItem) {
+          return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
+        }
+      } else if (pkg.items) {
+        return pkg.items.map((id: string) => {
+          const menuItem = menu.find((m: any) => m.id === id);
+          return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
+        });
+      }
     }
     return order.items || [];
   };
@@ -215,8 +227,33 @@ export default function DeliveryDashboard() {
     
     const filtered = orders.filter(o => {
       const isAssignedToMe = o.assignedTo === currentUser.id;
-      const orderDate = typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt;
-      const isCorrectDate = !selectedDate || isSameDay(orderDate, selectedDate);
+      
+      const targetDate = selectedDate || new Date();
+      let isCorrectDate = false;
+      
+      if (o.type === 'Subscription') {
+        const pkg = allPackages.find(p => p.name === o.packageName);
+        if (pkg && pkg.type === 'monthly') {
+          if (selectedDate) {
+            try {
+              const targetMonthStr = format(selectedDate, 'MMMM yyyy');
+              isCorrectDate = pkg.dateContext === targetMonthStr;
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            try {
+              const currentMonthStr = format(new Date(), 'MMMM yyyy');
+              isCorrectDate = pkg.dateContext === currentMonthStr;
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      } else {
+        const orderDate = o.referenceDate ? parseISO(o.referenceDate) : (typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt);
+        isCorrectDate = !selectedDate || isSameDay(orderDate, selectedDate);
+      }
       
       if (!isAssignedToMe || !isCorrectDate) return false;
 
@@ -227,7 +264,7 @@ export default function DeliveryDashboard() {
                        (activeFilters.morning && o.slot === 'Morning') || 
                        (activeFilters.noon && o.slot === 'Noon');
       
-      const orderItems = getPackageItems(o);
+      const orderItems = getPackageItems(o, targetDate);
       const dietaryMatch = !dietaryActive || 
                           (activeFilters.veg && orderItems.every((item: any) => item.type === 'Veg')) || 
                           (activeFilters.nonVeg && orderItems.some((item: any) => item.type === 'Non-Veg'));
@@ -510,7 +547,11 @@ export default function DeliveryDashboard() {
                           <div className="flex items-center gap-2 mt-2">
                             <CalendarIcon className="w-3.5 h-3.5 text-blue-600" />
                             <span className="text-xs font-black text-slate-900">
-                              {order.packageName ? (allPackages.find(p => p.name === order.packageName)?.dateContext || 'Meal Date') : 'Custom Date'}
+                              {order.type === 'Subscription' 
+                                ? format(selectedDate || new Date(), 'MMMM d, yyyy')
+                                : order.packageName 
+                                  ? (allPackages.find(p => p.name === order.packageName)?.dateContext || 'Meal Date') 
+                                  : 'Custom Date'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -531,9 +572,14 @@ export default function DeliveryDashboard() {
                       </TableCell>
                       <TableCell className="align-top py-6">
                         <div className="space-y-3">
-                          <Badge variant="outline" className="bg-slate-50 text-[10px] font-black border-slate-200 h-6 text-slate-700 uppercase flex items-center gap-1 px-3 w-fit"><Package className="w-3 h-3" />{order.packageName || "Custom"}</Badge>
+                          <Badge variant="outline" className="bg-slate-50 text-[10px] font-black border-slate-200 h-6 text-slate-700 uppercase flex items-center gap-1 px-3 w-fit">
+                            <Package className="w-3 h-3" />
+                            {order.type === 'Subscription' 
+                              ? `${order.packageName || "Subscription"} (Day ${(selectedDate || new Date()).getDate()})` 
+                              : (order.packageName || "Custom")}
+                          </Badge>
                           <div className="space-y-1.5">
-                            {getPackageItems(order).map((item: any, i: number) => (
+                            {getPackageItems(order, selectedDate || new Date()).map((item: any, i: number) => (
                               <div key={i} className="flex items-center gap-2">{item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}<span className="text-[11px] font-bold text-slate-600">{item.quantity}x {item.name}</span></div>
                             ))}
                           </div>
@@ -599,8 +645,20 @@ export default function DeliveryDashboard() {
                       <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Task Details</Label>
                       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <p className="text-xs font-bold">{selectedOrderForDetails.slot} • {selectedOrderForDetails.deliveryTime}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Package: {selectedOrderForDetails.packageName || "Custom"}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Package: {selectedOrderForDetails.type === 'Subscription' 
+                            ? `${selectedOrderForDetails.packageName || "Subscription"} (Day ${(selectedDate || new Date()).getDate()})` 
+                            : (selectedOrderForDetails.packageName || "Custom")}
+                        </p>
                         <p className="font-black text-blue-600 mt-2">{selectedOrderForDetails.packageQuantity || 1} Sets</p>
+                        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1.5">
+                          {getPackageItems(selectedOrderForDetails, selectedDate || new Date()).map((item: any, i: number) => (
+                            <div key={i} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                              {item.type === 'Veg' ? <Leaf className="w-3.5 h-3.5 text-green-500 shrink-0" /> : <Flame className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                              <span>{item.quantity}x {item.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>

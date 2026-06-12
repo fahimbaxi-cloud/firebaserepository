@@ -269,14 +269,24 @@ export default function DeliveryReportsPage() {
     setColFilters(prev => ({ ...prev, [key]: val }));
   };
 
-  const getPackageItems = (order: Order) => {
+  const getPackageItems = (order: Order, targetDate: Date = new Date()) => {
     if (!allPackages || !menu) return [];
-    const pkg = allPackages.find(p => p.name === order.packageName);
-    if (pkg && pkg.items) {
-      return pkg.items.map((id: string) => {
-        const menuItem = menu.find(m => m.id === id);
-        return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-      });
+    const pkg = allPackages.find((p: any) => p.name === order.packageName);
+    if (pkg) {
+      if (pkg.type === 'monthly' && pkg.items) {
+        const dayOfMonth = targetDate.getDate();
+        const idx = (dayOfMonth - 1) % pkg.items.length;
+        const id = pkg.items[idx];
+        const menuItem = menu.find((m: any) => m.id === id);
+        if (menuItem) {
+          return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
+        }
+      } else if (pkg.items) {
+        return pkg.items.map((id: string) => {
+          const menuItem = menu.find((m: any) => m.id === id);
+          return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
+        });
+      }
     }
     return order.items || [];
   };
@@ -528,10 +538,23 @@ export default function DeliveryReportsPage() {
                       </div>
                       <div className="space-y-4">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Package Overview</Label>
-                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                          <div className="flex items-center justify-between">
+                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
+                          <div className="flex items-center justify-between pb-3 border-b border-blue-100">
                             <div className="flex items-center gap-2"><Package className="w-5 h-5 text-blue-600" /><p className="font-black text-slate-900">{selectedOrderDetails.packageName || "Custom"}</p></div>
                             <Badge className="bg-blue-600 text-white border-none font-black text-sm">{selectedOrderDetails.packageQuantity || 1} Sets</Badge>
+                          </div>
+                          <div className="space-y-1.5 pt-1">
+                            {(() => {
+                              const orderDate = typeof selectedOrderDetails.createdAt === 'string' 
+                                ? parseISO(selectedOrderDetails.createdAt) 
+                                : selectedOrderDetails.createdAt;
+                              return getPackageItems(selectedOrderDetails, orderDate).map((item: any, i: number) => (
+                                <div key={i} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1 shrink-0" />
+                                  <span>{item.quantity}x {item.name} ({item.type})</span>
+                                </div>
+                              ));
+                            })()}
                           </div>
                         </div>
                       </div>
