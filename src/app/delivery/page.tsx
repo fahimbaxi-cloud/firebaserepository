@@ -204,13 +204,26 @@ export default function DeliveryDashboard() {
     if (!allPackages || !menu) return [];
     const pkg = allPackages.find((p: any) => p.name === order.packageName);
     if (pkg) {
-      if (pkg.type === 'monthly' && pkg.items) {
-        const dayOfMonth = targetDate.getDate();
-        const idx = (dayOfMonth - 1) % pkg.items.length;
-        const id = pkg.items[idx];
-        const menuItem = menu.find((m: any) => m.id === id);
-        if (menuItem) {
-          return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
+      if (pkg.type === 'monthly') {
+        if (pkg.monthlyAssignments) {
+          const dateKey = format(targetDate, 'yyyy-MM-dd');
+          const dayItems = pkg.monthlyAssignments[dateKey] || [];
+          if (dayItems.length > 0) {
+            return dayItems.map((id: string) => {
+              const menuItem = menu.find((m: any) => m.id === id);
+              return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
+            });
+          }
+          return [];
+        }
+        if (pkg.items && pkg.items.length > 0) {
+          const dayOfMonth = targetDate.getDate();
+          const idx = (dayOfMonth - 1) % pkg.items.length;
+          const id = pkg.items[idx];
+          const menuItem = menu.find((m: any) => m.id === id);
+          if (menuItem) {
+            return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
+          }
         }
       } else if (pkg.items) {
         return pkg.items.map((id: string) => {
@@ -234,20 +247,23 @@ export default function DeliveryDashboard() {
       if (o.type === 'Subscription') {
         const pkg = allPackages.find(p => p.name === o.packageName);
         if (pkg && pkg.type === 'monthly') {
-          if (selectedDate) {
-            try {
-              const targetMonthStr = format(selectedDate, 'MMMM yyyy');
-              isCorrectDate = pkg.dateContext === targetMonthStr;
-            } catch (e) {
-              console.error(e);
+          try {
+            const targetMonthStr = format(targetDate, 'MMMM yyyy');
+            const isMonthCorrect = pkg.dateContext === targetMonthStr;
+            if (isMonthCorrect) {
+              if (pkg.monthlyAssignments) {
+                const dateKey = format(targetDate, 'yyyy-MM-dd');
+                const dayItems = pkg.monthlyAssignments[dateKey] || [];
+                isCorrectDate = dayItems.length > 0;
+              } else {
+                isCorrectDate = pkg.items && pkg.items.length > 0;
+              }
+            } else {
+              isCorrectDate = false;
             }
-          } else {
-            try {
-              const currentMonthStr = format(new Date(), 'MMMM yyyy');
-              isCorrectDate = pkg.dateContext === currentMonthStr;
-            } catch (e) {
-              console.error(e);
-            }
+          } catch (e) {
+            console.error(e);
+            isCorrectDate = false;
           }
         }
       } else {
