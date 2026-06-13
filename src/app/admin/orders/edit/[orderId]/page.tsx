@@ -113,11 +113,21 @@ export default function EditOrderPage() {
     const dailyDateStr = format(targetDailyDate, "MMMM d, yyyy");
     const monthStr = format(selectedDate, "MMMM yyyy");
 
-    return broadcastPackages.filter(pkg => 
+    const filtered = broadcastPackages.filter(pkg => 
       (pkg.type === 'daily' && pkg.dateContext === dailyDateStr) || 
       (pkg.type === 'monthly' && pkg.dateContext === monthStr)
     );
-  }, [selectedDate, broadcastPackages]);
+
+    // Ensure the package currently in the order is always visible in the package selection list
+    if (order) {
+      const orderPkg = broadcastPackages.find(p => p.name === order.packageName);
+      if (orderPkg && !filtered.some(p => p.id === orderPkg.id)) {
+        filtered.push(orderPkg);
+      }
+    }
+
+    return filtered;
+  }, [selectedDate, broadcastPackages, order]);
 
   const cartPackages = useMemo(() => {
     return Object.entries(selectedPackages)

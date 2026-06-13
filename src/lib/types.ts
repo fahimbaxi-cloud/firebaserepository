@@ -65,6 +65,7 @@ export interface BroadcastPackage {
   createdAt: string;
   imageUrl?: string;
   items?: string[]; // IDs of menu items included
+  monthlyAssignments?: Record<string, string[]>;
 }
 
 export interface Order {

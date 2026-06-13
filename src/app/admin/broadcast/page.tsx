@@ -70,6 +70,19 @@ export default function BroadcastPage() {
   const { data: packagesData, isLoading: packagesLoading } = useCollection<BroadcastPackage>(packagesQuery);
   const packages = packagesData || [];
 
+  const sortedPackages = useMemo(() => {
+    if (!packagesData) return [];
+    return [...packagesData].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (dateA !== dateB) return dateB - dateA;
+      
+      const updateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const updateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return updateB - updateA;
+    });
+  }, [packagesData]);
+
   const menuQuery = useMemoFirebase(() => {
     if (!currentUser) return null;
     return collection(firestore, 'menu_items');
@@ -251,6 +264,10 @@ export default function BroadcastPage() {
       updatedAt: new Date().toISOString()
     };
 
+    if (broadcastType === 'monthly') {
+      newPackageData.monthlyAssignments = monthlyAssignments;
+    }
+
     if (editingPackageId) {
       const ref = doc(firestore, 'packages', editingPackageId);
       updateDocumentNonBlocking(ref, newPackageData);
@@ -290,9 +307,33 @@ export default function BroadcastPage() {
       try {
         const date = parse(pkg.dateContext, 'MMMM yyyy', new Date());
         if (isValid(date)) {
-          setCurrentMonth(getMonth(date));
-          setCurrentYear(getYear(date));
-          setMonthlyAssignments({});
+          const m = getMonth(date);
+          const y = getYear(date);
+          setCurrentMonth(m);
+          setCurrentYear(y);
+          if (pkg.monthlyAssignments) {
+            setMonthlyAssignments(pkg.monthlyAssignments);
+          } else if (pkg.items && pkg.items.length > 0) {
+            // Sequential distribution fallback for older items without direct assignment map
+            const start = startOfMonth(new Date(y, m));
+            const end = endOfMonth(start);
+            const days = eachDayOfInterval({ start, end });
+            const sortedDays = [...days].sort((a, b) => a.getTime() - b.getTime());
+            const reconstructed: Record<string, string[]> = {};
+            pkg.items.forEach((itemId, idx) => {
+              const day = sortedDays[idx % sortedDays.length];
+              if (day) {
+                const key = format(day, 'yyyy-MM-dd');
+                if (!reconstructed[key]) {
+                  reconstructed[key] = [];
+                }
+                reconstructed[key].push(itemId);
+              }
+            });
+            setMonthlyAssignments(reconstructed);
+          } else {
+            setMonthlyAssignments({});
+          }
         }
       } catch (e) {
         console.error(e);
@@ -341,9 +382,9 @@ export default function BroadcastPage() {
               <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Syncing Registry...</p>
             </div>
-          ) : packages.length > 0 ? (
+          ) : sortedPackages.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {packages.map((pkg) => (
+              {sortedPackages.map((pkg) => (
                 <Card key={pkg.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white group hover:shadow-md transition-all">
                   <div className="flex h-40">
                     <div className="w-1/3 relative shrink-0 bg-slate-50 border-r border-secondary/10 overflow-hidden group/image">
