@@ -132,6 +132,7 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                   {pkg.type === 'monthly' ? (
                     pkg.items?.map((itemId, idx) => {
                       const item = menuItems.find(m => m.id === itemId);
+                      if (item && item.show === false) return null;
                       const dayKey = `${pkg.id}-day-${idx}`;
                       const isOpen = !!openDays[dayKey];
                       
@@ -189,6 +190,7 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                   ) : (
                     pkg.items?.map(itemId => {
                       const item = menuItems.find(m => m.id === itemId);
+                      if (item && item.show === false) return null;
                       return (
                         <div key={itemId} className="flex items-center gap-2 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30">
                           <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">

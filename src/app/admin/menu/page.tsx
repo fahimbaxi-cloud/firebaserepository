@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
 import { useToast } from '@/hooks/use-toast';
@@ -47,7 +48,8 @@ export default function MenuManagement() {
     type: 'Veg' as 'Veg' | 'Non-Veg',
     price: '',
     description: '',
-    ingredients: [] as MenuItemIngredient[]
+    ingredients: [] as MenuItemIngredient[],
+    show: true
   });
   
   const [isGenerating, setIsGenerating] = useState(false);
@@ -101,7 +103,8 @@ export default function MenuManagement() {
       type: item.type,
       price: item.price.toString(),
       description: item.description,
-      ingredients: item.ingredients || []
+      ingredients: item.ingredients || [],
+      show: item.show !== false
     });
     setImagePreview(item.imageUrl);
     setIsDialogOpen(true);
@@ -155,7 +158,7 @@ export default function MenuManagement() {
   };
 
   const resetForm = () => {
-    setFormItem({ name: '', type: 'Veg', price: '', description: '', ingredients: [] });
+    setFormItem({ name: '', type: 'Veg', price: '', description: '', ingredients: [], show: true });
     setImagePreview(null);
     setEditingItemId(null);
   };
@@ -264,7 +267,7 @@ export default function MenuManagement() {
             <DialogTitle className="text-2xl font-headline">{editingItemId ? 'Edit Item' : 'Add to Item'}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-8 py-4 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2"><Label>Item Name</Label><Input value={formItem.name} onChange={e => setFormItem({...formItem, name: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Base Price</Label><Input type="number" value={formItem.price} onChange={e => setFormItem({...formItem, price: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Dietary Type</Label>
@@ -272,6 +275,15 @@ export default function MenuManagement() {
                   <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="Veg">Veg</SelectItem><SelectItem value="Non-Veg">Non-Veg</SelectItem></SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-2 pt-8 pl-1">
+                <Checkbox 
+                  id="show-btn" 
+                  checked={formItem.show} 
+                  onCheckedChange={(checked) => setFormItem({...formItem, show: !!checked})} 
+                  className="rounded-lg h-5 w-5"
+                />
+                <Label htmlFor="show-btn" className="font-bold cursor-pointer text-sm select-none">Show</Label>
               </div>
             </div>
             <div className="space-y-2">

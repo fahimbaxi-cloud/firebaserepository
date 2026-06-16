@@ -275,10 +275,13 @@ export default function DeliveryReportsPage() {
     if (pkg && pkg.items) {
       return pkg.items.map((id: string) => {
         const menuItem = menu.find(m => m.id === id);
-        return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-      });
+        return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1, show: menuItem?.show };
+      }).filter((item: any) => item.show !== false);
     }
-    return order.items || [];
+    return (order.items || []).filter((item: any) => {
+      const menuItem = menu.find(m => m.id === item.menuItemId || m.name === item.name);
+      return !menuItem || menuItem.show !== false;
+    });
   };
 
   const openOrderDetails = (order: Order) => {

@@ -211,8 +211,8 @@ export default function DeliveryDashboard() {
           if (dayItems.length > 0) {
             return dayItems.map((id: string) => {
               const menuItem = menu.find((m: any) => m.id === id);
-              return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-            });
+              return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1, show: menuItem?.show };
+            }).filter((item: any) => item.show !== false);
           }
           return [];
         }
@@ -221,18 +221,22 @@ export default function DeliveryDashboard() {
           const idx = (dayOfMonth - 1) % pkg.items.length;
           const id = pkg.items[idx];
           const menuItem = menu.find((m: any) => m.id === id);
-          if (menuItem) {
+          if (menuItem && menuItem.show !== false) {
             return [{ name: menuItem.name || "Unknown Item", type: menuItem.type || "Veg", quantity: order.packageQuantity || 1 }];
           }
+          return [];
         }
       } else if (pkg.items) {
         return pkg.items.map((id: string) => {
           const menuItem = menu.find((m: any) => m.id === id);
-          return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1 };
-        });
+          return { name: menuItem?.name || "Unknown Item", type: menuItem?.type || "Veg", quantity: order.packageQuantity || 1, show: menuItem?.show };
+        }).filter((item: any) => item.show !== false);
       }
     }
-    return order.items || [];
+    return (order.items || []).filter((item: any) => {
+      const menuItem = menu.find((m: any) => m.id === item.menuItemId || m.name === item.name);
+      return !menuItem || menuItem.show !== false;
+    });
   };
 
   const filteredOrders = useMemo(() => {

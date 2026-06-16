@@ -259,7 +259,6 @@ export default function BroadcastPage() {
       itemsCount: finalItems.length,
       price: Number(packagePrice),
       message: message,
-      specialOffers: specialOffers || null,
       imageUrl: imagePreview || null,
       items: finalItems,
       updatedAt: new Date().toISOString()
@@ -290,7 +289,7 @@ export default function BroadcastPage() {
     setBroadcastType(pkg.type);
     setPackagePrice(pkg.price.toString());
     setMessage(pkg.message || '');
-    setSpecialOffers(pkg.specialOffers || '');
+    setSpecialOffers('');
     setImagePreview(pkg.imageUrl || null);
     
     if (pkg.type === 'daily' && pkg.dateContext) {
@@ -691,16 +690,6 @@ export default function BroadcastPage() {
                           value={packagePrice}
                           onChange={(e) => setPackagePrice(e.target.value)}
                           className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-2xl font-black text-lg"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-white/90 font-bold uppercase text-[10px] tracking-widest">Special Offers & Promo Notes (Optional)</Label>
-                        <Textarea 
-                          placeholder="e.g. 10% off for first 100 subscribers, free dessert included!" 
-                          value={specialOffers}
-                          onChange={(e) => setSpecialOffers(e.target.value)}
-                          className="min-h-[80px] bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-2xl font-medium text-xs focus:ring-0 focus:outline-none"
                         />
                       </div>
                       

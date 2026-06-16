@@ -282,9 +282,12 @@ export default function CustomerOrdersPage() {
   const getPackageItems = (order: Order) => {
     const pkg = allPackages.find(p => p.name === order.packageName);
     if (pkg && pkg.items) {
-      return pkg.items.map(id => menu.find(m => m.id === id)).filter(Boolean);
+      return pkg.items.map(id => menu.find(m => m.id === id)).filter(Boolean).filter((m: any) => m.show !== false);
     }
-    return order.items || [];
+    return (order.items || []).filter((item: any) => {
+      const menuItem = menu.find(m => m.id === item.menuItemId || m.name === item.name);
+      return !menuItem || menuItem.show !== false;
+    });
   };
 
   const PackageItemRow = ({ item }: { item: any }) => (

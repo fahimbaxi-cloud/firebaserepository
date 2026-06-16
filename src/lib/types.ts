@@ -52,6 +52,7 @@ export interface MenuItem {
   description: string;
   imageUrl: string;
   ingredients?: MenuItemIngredient[];
+  show?: boolean;
 }
 
 export interface BroadcastPackage {
@@ -62,7 +63,6 @@ export interface BroadcastPackage {
   itemsCount: number;
   price: number;
   message: string;
-  specialOffers?: string;
   createdAt: string;
   imageUrl?: string;
   items?: string[]; // IDs of menu items included
