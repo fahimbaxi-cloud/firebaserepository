@@ -29,7 +29,8 @@ import {
   Tag, 
   Upload, 
   Loader2,
-  ZoomIn
+  ZoomIn,
+  Search
 } from 'lucide-react';
 import { adminMenuNotificationGeneration } from '@/ai/flows/admin-menu-notification-generation';
 import { useToast } from '@/hooks/use-toast';
@@ -89,6 +90,33 @@ export default function BroadcastPage() {
   }, [firestore, currentUser]);
   const { data: menuData } = useCollection<MenuItem>(menuQuery);
   const menuItems = menuData || [];
+
+  const [dailySearchQuery, setDailySearchQuery] = useState('');
+  const [monthlySearchQuery, setMonthlySearchQuery] = useState('');
+
+  const sortedMenuItems = useMemo(() => {
+    return [...menuItems].sort((a, b) => {
+      const nameA = a.name || '';
+      const nameB = b.name || '';
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    });
+  }, [menuItems]);
+
+  const filteredDailyMenuItems = useMemo(() => {
+    return sortedMenuItems.filter(item => {
+      const name = (item.name || '').toLowerCase();
+      const q = dailySearchQuery.toLowerCase();
+      return name.includes(q);
+    });
+  }, [sortedMenuItems, dailySearchQuery]);
+
+  const filteredMonthlyMenuItems = useMemo(() => {
+    return sortedMenuItems.filter(item => {
+      const name = (item.name || '').toLowerCase();
+      const q = monthlySearchQuery.toLowerCase();
+      return name.includes(q);
+    });
+  }, [sortedMenuItems, monthlySearchQuery]);
 
   // Form State
   const [broadcastType, setBroadcastType] = useState<'daily' | 'monthly'>('daily');
@@ -522,26 +550,41 @@ export default function BroadcastPage() {
                         </div>
                         <div className="space-y-4">
                           <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Select Menu Items</Label>
-                          <ScrollArea className="h-[300px] pr-4 border-2 border-secondary/50 rounded-2xl p-4 bg-secondary/10">
+                          <div className="relative">
+                            <Input 
+                              placeholder="Search item..." 
+                              value={dailySearchQuery}
+                              onChange={(e) => setDailySearchQuery(e.target.value)}
+                              className="h-12 bg-secondary/30 border-none rounded-2xl font-bold px-11"
+                            />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                          </div>
+                          <ScrollArea className="h-[250px] pr-4 border-2 border-secondary/50 rounded-2xl p-4 bg-secondary/10">
                             <div className="space-y-3">
-                              {menuItems.map((item) => (
-                                <div 
-                                  key={item.id} 
-                                  className={cn(
-                                    "flex items-center space-x-3 p-3 rounded-2xl border-2 transition-all cursor-pointer",
-                                    dailySelectedItems.includes(item.id) 
-                                      ? "border-primary bg-primary/5 shadow-sm" 
-                                      : "border-transparent bg-white hover:border-primary/30"
-                                  )}
-                                  onClick={() => handleToggleDailyItem(item.id)}
-                                >
-                                  <Checkbox checked={dailySelectedItems.includes(item.id)} className="rounded-md h-5 w-5" />
-                                  <div className="flex-1">
-                                    <p className="font-bold text-sm">{item.name}</p>
-                                    <p className="text-[10px] text-muted-foreground">Rs {item.price}</p>
+                              {filteredDailyMenuItems.length > 0 ? (
+                                filteredDailyMenuItems.map((item) => (
+                                  <div 
+                                    key={item.id} 
+                                    className={cn(
+                                      "flex items-center space-x-3 p-3 rounded-2xl border-2 transition-all cursor-pointer",
+                                      dailySelectedItems.includes(item.id) 
+                                        ? "border-primary bg-primary/5 shadow-sm" 
+                                        : "border-transparent bg-white hover:border-primary/30"
+                                    )}
+                                    onClick={() => handleToggleDailyItem(item.id)}
+                                  >
+                                    <Checkbox checked={dailySelectedItems.includes(item.id)} className="rounded-md h-5 w-5 animate-in fade-in zoom-in-50 duration-200" />
+                                    <div className="flex-1">
+                                      <p className="font-bold text-sm">{item.name}</p>
+                                      <p className="text-[10px] text-muted-foreground">Rs {item.price}</p>
+                                    </div>
                                   </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-8 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                  No items found
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </ScrollArea>
                         </div>
@@ -632,24 +675,39 @@ export default function BroadcastPage() {
                                       <div className="bg-secondary/20 p-3 border-b">
                                         <p className="text-[10px] font-black uppercase text-accent">{mounted ? format(day, 'PPPP') : '...'}</p>
                                       </div>
+                                      <div className="p-2 border-b bg-white relative">
+                                        <Input 
+                                          placeholder="Search item..." 
+                                          value={monthlySearchQuery}
+                                          onChange={(e) => setMonthlySearchQuery(e.target.value)}
+                                          className="h-10 bg-secondary/20 border-none rounded-xl font-bold pl-9 pr-4 text-xs focus-visible:ring-0 placeholder:text-muted-foreground/60"
+                                        />
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                      </div>
                                       <ScrollArea className="h-64 p-2">
                                         <div className="space-y-1">
-                                          {menuItems.map((item) => (
-                                            <div 
-                                              key={item.id}
-                                              className={cn(
-                                                "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
-                                                assignments.includes(item.id) ? "bg-primary/5" : "hover:bg-secondary/50"
-                                              )}
-                                              onClick={() => handleToggleMonthlyItem(dateKey, item.id)}
-                                            >
-                                              <Checkbox checked={assignments.includes(item.id)} className="rounded-md h-5 w-5" />
-                                              <div className="flex-1">
-                                                <p className="text-xs font-black">{item.name}</p>
-                                                <p className="text-[10px] text-muted-foreground">Rs {item.price}</p>
+                                          {filteredMonthlyMenuItems.length > 0 ? (
+                                            filteredMonthlyMenuItems.map((item) => (
+                                              <div 
+                                                key={item.id}
+                                                className={cn(
+                                                  "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
+                                                  assignments.includes(item.id) ? "bg-primary/5" : "hover:bg-secondary/50"
+                                                )}
+                                                onClick={() => handleToggleMonthlyItem(dateKey, item.id)}
+                                              >
+                                                <Checkbox checked={assignments.includes(item.id)} className="rounded-md h-5 w-5 animate-in fade-in zoom-in-50 duration-200" />
+                                                <div className="flex-1">
+                                                  <p className="text-xs font-black">{item.name}</p>
+                                                  <p className="text-[10px] text-muted-foreground">Rs {item.price}</p>
+                                                </div>
                                               </div>
+                                            ))
+                                          ) : (
+                                            <div className="text-center py-8 text-[10px] font-black text-muted-foreground uppercase tracking-wider">
+                                              No items found
                                             </div>
-                                          ))}
+                                          )}
                                         </div>
                                       </ScrollArea>
                                     </PopoverContent>
