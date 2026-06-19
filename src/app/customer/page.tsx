@@ -35,6 +35,7 @@ export default function CustomerHome() {
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('Morning');
   
   const [dailyDate, setDailyDate] = useState<Date | undefined>(undefined);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [monthlyMonth, setMonthlyMonth] = useState<number>(getMonth(new Date()));
   const [monthlyYear, setMonthlyYear] = useState<number>(getYear(new Date()));
 
@@ -294,7 +295,7 @@ export default function CustomerHome() {
               
               <div className="flex flex-col gap-2">
                 <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Selection (Showing Next Day Menu)</Label>
-                <Popover>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -312,7 +313,10 @@ export default function CustomerHome() {
                       mode="single"
                       selected={dailyDate}
                       onSelect={(date) => {
-                        if (date) setDailyDate(date);
+                        if (date) {
+                          setDailyDate(date);
+                          setIsDatePickerOpen(false);
+                        }
                       }}
                       initialFocus
                       className="rounded-3xl"

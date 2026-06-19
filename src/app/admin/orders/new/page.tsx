@@ -43,6 +43,7 @@ export default function NewOfflineOrderPage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selectedPackages, setSelectedPackages] = useState<Record<string, number>>({});
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('Morning');
   const [timeValue, setTimeValue] = useState('08:30');
@@ -256,7 +257,7 @@ export default function NewOfflineOrderPage() {
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="space-y-3 flex-1">
                   <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Reference Date (When Given)</Label>
-                  <Popover>
+                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                     <PopoverTrigger asChild>
                       <Button variant={"outline"} className={cn("w-full h-14 justify-start text-left font-bold rounded-2xl bg-secondary/30 border-none px-6", !selectedDate && "text-muted-foreground")}>
                         <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
@@ -264,7 +265,10 @@ export default function NewOfflineOrderPage() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
-                      <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="rounded-3xl" />
+                      <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
+                        setSelectedDate(date);
+                        setIsDatePickerOpen(false);
+                      }} initialFocus className="rounded-3xl" />
                     </PopoverContent>
                   </Popover>
                 </div>

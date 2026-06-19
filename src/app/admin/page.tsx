@@ -121,6 +121,8 @@ export default function AdminDashboard() {
 
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [statsDate, setStatsDate] = useState<Date | undefined>(undefined);
+  const [isFilterDatePickerOpen, setIsFilterDatePickerOpen] = useState(false);
+  const [isStatsDatePickerOpen, setIsStatsDatePickerOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'createdAt', direction: 'desc' });
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -411,7 +413,7 @@ export default function AdminDashboard() {
           
           <div className="flex flex-wrap items-center gap-3 print:hidden">
             <div className="bg-secondary/30 p-1 rounded-2xl">
-              <Popover>
+              <Popover open={isFilterDatePickerOpen} onOpenChange={setIsFilterDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button 
                     variant="ghost" 
@@ -430,7 +432,10 @@ export default function AdminDashboard() {
                   <Calendar
                     mode="single"
                     selected={filterDate}
-                    onSelect={setFilterDate}
+                    onSelect={(date) => {
+                      setFilterDate(date);
+                      setIsFilterDatePickerOpen(false);
+                    }}
                     initialFocus
                     className="rounded-3xl"
                   />
@@ -714,7 +719,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Popover>
+            <Popover open={isStatsDatePickerOpen} onOpenChange={setIsStatsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
@@ -732,7 +737,10 @@ export default function AdminDashboard() {
                 <Calendar
                   mode="single"
                   selected={statsDate}
-                  onSelect={setStatsDate}
+                  onSelect={(date) => {
+                    setStatsDate(date);
+                    setIsStatsDatePickerOpen(false);
+                  }}
                   initialFocus
                   className="rounded-3xl"
                 />

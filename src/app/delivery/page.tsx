@@ -77,6 +77,7 @@ export default function DeliveryDashboard() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [customRouteOrder, setCustomRouteOrder] = useState<string[]>([]);
   
   const [activeFilters, setActiveFilters] = useState({
@@ -487,7 +488,7 @@ export default function DeliveryDashboard() {
               </Select>
             </div>
 
-            <Popover>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-[200px] h-12 justify-start text-left font-bold rounded-2xl bg-white border-blue-100 shadow-sm px-4">
                   <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
@@ -496,7 +497,10 @@ export default function DeliveryDashboard() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="end">
-                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="rounded-3xl" />
+                <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
+                  setSelectedDate(date);
+                  setIsDatePickerOpen(false);
+                }} initialFocus className="rounded-3xl" />
               </PopoverContent>
             </Popover>
           </div>

@@ -61,6 +61,7 @@ export default function ManufacturingPage() {
   const purchases = purchasesData || [];
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [qtyToManufacture, setQtyToManufacture] = useState<string>('1');
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -240,7 +241,7 @@ export default function ManufacturingPage() {
             <CardContent className="p-6 space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Production Date</Label>
-                <Popover>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -254,7 +255,10 @@ export default function ManufacturingPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
-                    <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="rounded-3xl" />
+                    <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
+                      setSelectedDate(date);
+                      setIsDatePickerOpen(false);
+                    }} initialFocus className="rounded-3xl" />
                   </PopoverContent>
                 </Popover>
               </div>

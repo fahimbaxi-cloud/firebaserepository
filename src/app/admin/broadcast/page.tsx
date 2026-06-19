@@ -93,6 +93,56 @@ export default function BroadcastPage() {
 
   const [dailySearchQuery, setDailySearchQuery] = useState('');
   const [monthlySearchQuery, setMonthlySearchQuery] = useState('');
+  const [packageSearchQuery, setPackageSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'daily' | 'monthly'>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc'>('newest');
+  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
+  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
+  const [isFilterStartDateOpen, setIsFilterStartDateOpen] = useState(false);
+  const [isFilterEndDateOpen, setIsFilterEndDateOpen] = useState(false);
+
+  const filteredPackages = useMemo(() => {
+    let result = [...sortedPackages];
+
+    if (typeFilter !== 'all') {
+      result = result.filter(pkg => pkg.type === typeFilter);
+    }
+
+    if (packageSearchQuery.trim() !== '') {
+      const q = packageSearchQuery.toLowerCase();
+      result = result.filter(pkg => (pkg.name || '').toLowerCase().includes(q));
+    }
+
+    if (filterStartDate) {
+      result = result.filter(pkg => {
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const start = new Date(filterStartDate);
+        start.setHours(0, 0, 0, 0);
+        return createdAtDate >= start;
+      });
+    }
+
+    if (filterEndDate) {
+      result = result.filter(pkg => {
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const end = new Date(filterEndDate);
+        end.setHours(23, 59, 59, 999);
+        return createdAtDate <= end;
+      });
+    }
+
+    if (sortOrder === 'oldest') {
+      result = [...result].reverse();
+    } else if (sortOrder === 'price-asc') {
+      result.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (sortOrder === 'price-desc') {
+      result.sort((a, b) => (b.price || 0) - (a.price || 0));
+    }
+
+    return result;
+  }, [sortedPackages, typeFilter, packageSearchQuery, sortOrder, filterStartDate, filterEndDate]);
 
   const sortedMenuItems = useMemo(() => {
     return [...menuItems].sort((a, b) => {
@@ -131,6 +181,7 @@ export default function BroadcastPage() {
 
   // Daily State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
   // Monthly State
@@ -411,69 +462,263 @@ export default function BroadcastPage() {
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Syncing Registry...</p>
             </div>
           ) : sortedPackages.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedPackages.map((pkg) => (
-                <Card key={pkg.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white group hover:shadow-md transition-all">
-                  <div className="flex h-40">
-                    <div className="w-1/3 relative shrink-0 bg-slate-50 border-r border-secondary/10 overflow-hidden group/image">
-                      {pkg.imageUrl ? (
-                        <>
-                          <img src={pkg.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-110" alt={pkg.name} />
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <button className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
-                                <ZoomIn className="w-6 h-6 text-white" />
-                              </button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
-                              <div className="relative w-full aspect-video rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
-                                <img src={pkg.imageUrl} className="w-full h-full object-cover" alt={pkg.name} />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center opacity-20">
-                          <Megaphone className="w-8 h-8" />
-                        </div>
+            <div className="space-y-6">
+              {/* Desktop and Mobile Responsive Filters Bar */}
+              <div className="flex flex-col gap-4 bg-white p-5 rounded-[2rem] shadow-sm border border-secondary/10">
+                <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="Search broadcast by name..."
+                      value={packageSearchQuery}
+                      onChange={(e) => setPackageSearchQuery(e.target.value)}
+                      className="h-12 bg-secondary/20 border-none rounded-2xl font-bold px-11 text-sm focus-visible:ring-1 focus-visible:ring-primary/20"
+                    />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div className="flex bg-secondary/30 p-1 rounded-2xl h-12 items-center flex-1 sm:flex-none">
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('all')}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all h-full flex-1 sm:flex-none whitespace-nowrap",
+                          typeFilter === 'all' 
+                            ? "bg-white text-primary shadow-sm" 
+                            : "text-muted-foreground hover:text-accent"
+                        )}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('daily')}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all h-full flex-1 sm:flex-none whitespace-nowrap",
+                          typeFilter === 'daily' 
+                            ? "bg-white text-primary shadow-sm" 
+                            : "text-muted-foreground hover:text-accent"
+                        )}
+                      >
+                        Daily
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('monthly')}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all h-full flex-1 sm:flex-none whitespace-nowrap",
+                          typeFilter === 'monthly' 
+                            ? "bg-white text-primary shadow-sm" 
+                            : "text-muted-foreground hover:text-accent"
+                        )}
+                      >
+                        Monthly
+                      </button>
+                    </div>
+
+                    <div className="w-full sm:w-[180px]">
+                      <Select value={sortOrder} onValueChange={(v: any) => setSortOrder(v)}>
+                        <SelectTrigger className="h-12 bg-secondary/30 border-none text-xs font-black uppercase tracking-wider rounded-2xl cursor-pointer">
+                          <SelectValue placeholder="Sort order" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl">
+                          <SelectItem value="newest" className="font-bold text-xs uppercase tracking-wider cursor-pointer">Newest First</SelectItem>
+                          <SelectItem value="oldest" className="font-bold text-xs uppercase tracking-wider cursor-pointer">Oldest First</SelectItem>
+                          <SelectItem value="price-asc" className="font-bold text-xs uppercase tracking-wider cursor-pointer">Price: Low to High</SelectItem>
+                          <SelectItem value="price-desc" className="font-bold text-xs uppercase tracking-wider cursor-pointer">Price: High to Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date range row */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-3 border-t border-secondary/10">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                      <CalendarIcon className="w-4 h-4 text-primary" />
+                      <span>Date Range:</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Popover open={isFilterStartDateOpen} onOpenChange={setIsFilterStartDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "h-10 text-xs font-bold rounded-xl bg-secondary/20 hover:bg-secondary/30 border-none px-4 flex-1 sm:flex-initial min-w-[130px] justify-start",
+                              !filterStartDate && "text-muted-foreground"
+                            )}
+                          >
+                            {filterStartDate ? format(filterStartDate, "MMM d, yyyy") : "Start Date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={filterStartDate}
+                            onSelect={(date) => {
+                              setFilterStartDate(date);
+                              setIsFilterStartDateOpen(false);
+                            }}
+                            initialFocus
+                            className="rounded-3xl"
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <span className="text-muted-foreground text-xs font-bold">to</span>
+
+                      <Popover open={isFilterEndDateOpen} onOpenChange={setIsFilterEndDateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "h-10 text-xs font-bold rounded-xl bg-secondary/20 hover:bg-secondary/30 border-none px-4 flex-1 sm:flex-initial min-w-[130px] justify-start",
+                              !filterEndDate && "text-muted-foreground"
+                            )}
+                          >
+                            {filterEndDate ? format(filterEndDate, "MMM d, yyyy") : "End Date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={filterEndDate}
+                            onSelect={(date) => {
+                              setFilterEndDate(date);
+                              setIsFilterEndDateOpen(false);
+                            }}
+                            initialFocus
+                            className="rounded-3xl"
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      {(filterStartDate || filterEndDate) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFilterStartDate(undefined);
+                            setFilterEndDate(undefined);
+                          }}
+                          className="h-8 px-2 text-[10px] font-black uppercase text-destructive hover:bg-destructive/5 hover:text-destructive rounded-lg"
+                        >
+                          Reset Dates
+                        </Button>
                       )}
                     </div>
-                    <CardContent className="p-4 flex-1 flex flex-col justify-between overflow-hidden">
-                      <div>
-                        <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-bold text-base leading-tight flex-1 truncate">{pkg.name}</h4>
-                          <div className="flex gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(pkg)} className="w-8 h-8 rounded-full text-muted-foreground hover:text-primary">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => handleDelete(pkg.id)} 
-                              className="w-8 h-8 rounded-full text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{pkg.dateContext}</p>
-                        <Badge variant="secondary" className={cn(
-                          "rounded-lg px-2 py-0 h-4 border-none uppercase text-[8px] font-black mt-2",
-                          pkg.type === 'daily' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                        )}>
-                          {pkg.type}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="font-black text-primary text-lg">Rs {pkg.price}</span>
-                        <div className="text-[9px] font-black text-muted-foreground uppercase bg-secondary/50 px-2 py-0.5 rounded">
-                          {pkg.itemsCount} Dishes
-                        </div>
-                      </div>
-                    </CardContent>
                   </div>
-                </Card>
-              ))}
+
+                  {(packageSearchQuery || typeFilter !== 'all' || sortOrder !== 'newest' || filterStartDate || filterEndDate) && (
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      onClick={() => {
+                        setPackageSearchQuery('');
+                        setTypeFilter('all');
+                        setSortOrder('newest');
+                        setFilterStartDate(undefined);
+                        setFilterEndDate(undefined);
+                      }}
+                      className="h-10 px-4 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl ml-auto"
+                    >
+                      Clear All Filters
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {filteredPackages.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPackages.map((pkg) => (
+                    <Card key={pkg.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white group hover:shadow-md transition-all">
+                      <div className="flex h-40">
+                        <div className="w-1/3 relative shrink-0 bg-slate-50 border-r border-secondary/10 overflow-hidden group/image">
+                          {pkg.imageUrl ? (
+                            <>
+                              <img src={pkg.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-110" alt={pkg.name} />
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <button className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                    <ZoomIn className="w-6 h-6 text-white" />
+                                  </button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+                                  <div className="relative w-full aspect-video rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
+                                    <img src={pkg.imageUrl} className="w-full h-full object-cover" alt={pkg.name} />
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center opacity-20">
+                              <Megaphone className="w-8 h-8" />
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-4 flex-1 flex flex-col justify-between overflow-hidden">
+                          <div>
+                            <div className="flex justify-between items-start gap-2">
+                              <h4 className="font-bold text-base leading-tight flex-1 truncate">{pkg.name}</h4>
+                              <div className="flex gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(pkg)} className="w-8 h-8 rounded-full text-muted-foreground hover:text-primary">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleDelete(pkg.id)} 
+                                  className="w-8 h-8 rounded-full text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{pkg.dateContext}</p>
+                            <Badge variant="secondary" className={cn(
+                              "rounded-lg px-2 py-0 h-4 border-none uppercase text-[8px] font-black mt-2",
+                              pkg.type === 'daily' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                            )}>
+                              {pkg.type}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="font-black text-primary text-lg">Rs {pkg.price}</span>
+                            <div className="text-[9px] font-black text-muted-foreground uppercase bg-secondary/50 px-2 py-0.5 rounded">
+                              {pkg.itemsCount} Dishes
+                            </div>
+                          </div>
+                        </CardContent>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-24 bg-white rounded-[3rem] shadow-sm border-2 border-dashed border-secondary">
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="p-4 bg-secondary rounded-full">
+                      <Search className="w-8 h-8 text-muted-foreground/30" />
+                    </div>
+                    <p className="text-muted-foreground font-medium">No active broadcasts matched your filters.</p>
+                    <Button 
+                      variant="link" 
+                      onClick={() => {
+                        setPackageSearchQuery('');
+                        setTypeFilter('all');
+                        setSortOrder('newest');
+                        setFilterStartDate(undefined);
+                        setFilterEndDate(undefined);
+                      }} 
+                      className="text-primary font-bold"
+                    >
+                      Clear search & filters &times;
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-24 bg-white rounded-[3rem] shadow-sm border-2 border-dashed border-secondary">
@@ -530,7 +775,7 @@ export default function BroadcastPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">For Which Date?</Label>
-                          <Popover>
+                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                               <Button
                                 variant={"outline"}
@@ -544,7 +789,10 @@ export default function BroadcastPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
-                              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="rounded-3xl" />
+                              <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
+                                setSelectedDate(date);
+                                setIsDatePickerOpen(false);
+                              }} initialFocus className="rounded-3xl" />
                             </PopoverContent>
                           </Popover>
                         </div>
