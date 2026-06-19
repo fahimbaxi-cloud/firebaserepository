@@ -49,7 +49,7 @@ export default function MasterModulePage() {
   const incomeCategories = incomeCategoriesData || [];
   const glAccounts = glAccountsData || [];
 
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: '', direction: null });
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
 
   // Dialog States
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -109,11 +109,23 @@ export default function MasterModulePage() {
     const data = [...rawItems];
     if (sortConfig.key && sortConfig.direction) {
       data.sort((a, b) => {
-        const valA = (a as any)[sortConfig.key] || '';
-        const valB = (b as any)[sortConfig.key] || '';
+        if (sortConfig.key === 'currentStock') {
+          const valA = Number(a.currentStock ?? a.openingStock ?? 0);
+          const valB = Number(b.currentStock ?? b.openingStock ?? 0);
+          return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+        }
+        const valA = String((a as any)[sortConfig.key] || '').toLowerCase();
+        const valB = String((b as any)[sortConfig.key] || '').toLowerCase();
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
         if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
+      });
+    } else {
+      // Default: namewise ascending order
+      data.sort((a, b) => {
+        const nameA = String(a.name || '');
+        const nameB = String(b.name || '');
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
       });
     }
     return data;
