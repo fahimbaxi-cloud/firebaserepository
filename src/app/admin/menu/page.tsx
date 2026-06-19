@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -496,6 +496,7 @@ interface RawItemSelectorProps {
 function RawItemSelector({ value, onChange, rawItems }: RawItemSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const selectedItem = rawItems.find(ri => ri.id === value);
   
@@ -505,61 +506,72 @@ function RawItemSelector({ value, onChange, rawItems }: RawItemSelectorProps) {
     );
   }, [rawItems, search]);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <Popover open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen);
-      if (!isOpen) setSearch("");
-    }}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          role="combobox" 
-          aria-expanded={open} 
-          className="w-full h-10 rounded-xl bg-white border-none text-xs justify-between font-normal text-foreground px-3 flex items-center"
-        >
-          <span className="truncate">
-            {selectedItem ? selectedItem.name : "Pick item"}
-          </span>
-          <span className="text-muted-foreground ml-2 text-[10px]">▼</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[200px] p-2 rounded-2xl shadow-xl border border-secondary/30 bg-white" align="start">
-        <div className="relative mb-2">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input 
-            placeholder="Search raw item..." 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            className="pl-8 pr-3 h-8 text-xs rounded-lg border border-secondary/30 bg-secondary/5 focus-visible:ring-primary/20"
-          />
+    <div className="relative w-full" ref={containerRef}>
+      <Button 
+        type="button"
+        variant="outline" 
+        onClick={() => setOpen(!open)}
+        className="w-full h-10 rounded-xl bg-white border-none text-xs justify-between font-normal text-foreground px-3 flex items-center"
+      >
+        <span className="truncate">
+          {selectedItem ? selectedItem.name : "Pick item"}
+        </span>
+        <span className="text-muted-foreground ml-2 text-[10px]">▼</span>
+      </Button>
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 p-2 rounded-2xl shadow-xl border border-secondary/30 bg-white min-w-[200px]">
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input 
+              placeholder="Search raw item..." 
+              value={search} 
+              autoFocus
+              onChange={(e) => setSearch(e.target.value)} 
+              className="pl-8 pr-3 h-8 text-xs rounded-lg border border-secondary/30 bg-secondary/5 focus-visible:ring-primary/20"
+            />
+          </div>
+          <ScrollArea className="h-[200px] pr-1">
+            {filtered.length > 0 ? (
+              <div className="space-y-1">
+                {filtered.map(ri => (
+                  <button
+                    key={ri.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(ri.id);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors truncate block ${
+                      ri.id === value 
+                        ? "bg-primary text-white" 
+                        : "hover:bg-primary/10 text-foreground"
+                    }`}
+                  >
+                    {ri.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-[10px] text-muted-foreground py-4 font-bold uppercase">No items found</p>
+            )}
+          </ScrollArea>
         </div>
-        <ScrollArea className="h-[200px] pr-1">
-          {filtered.length > 0 ? (
-            <div className="space-y-1">
-              {filtered.map(ri => (
-                <button
-                  key={ri.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(ri.id);
-                    setOpen(false);
-                    setSearch("");
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors truncate block ${
-                    ri.id === value 
-                      ? "bg-primary text-white" 
-                      : "hover:bg-primary/10 text-foreground"
-                  }`}
-                >
-                  {ri.name}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-[10px] text-muted-foreground py-4 font-bold uppercase">No items found</p>
-          )}
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }
