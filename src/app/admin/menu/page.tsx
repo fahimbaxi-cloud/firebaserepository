@@ -26,11 +26,41 @@ export default function MenuManagement() {
   // Firestore Data
   const menuQuery = useMemoFirebase(() => collection(firestore, 'menu_items'), [firestore]);
   const { data: menuData, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'Veg' | 'Non-Veg'>('all');
+  const [showFilter, setShowFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+
   const menu = useMemo(() => {
-    return [...(menuData || [])].sort((a, b) => 
+    let items = [...(menuData || [])];
+    
+    // Search filter
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(i => 
+        (i.name || '').toLowerCase().includes(q) || 
+        (i.description || '').toLowerCase().includes(q)
+      );
+    }
+    
+    // Dietary type filter
+    if (typeFilter !== 'all') {
+      items = items.filter(i => i.type === typeFilter);
+    }
+    
+    // Visibility filter
+    if (showFilter !== 'all') {
+      items = items.filter(i => {
+        const isVisible = i.show !== false;
+        return showFilter === 'visible' ? isVisible : !isVisible;
+      });
+    }
+    
+    // Sort by name
+    return items.sort((a, b) => 
       (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true })
     );
-  }, [menuData]);
+  }, [menuData, searchQuery, typeFilter, showFilter]);
 
   const rawItemsQuery = useMemoFirebase(() => collection(firestore, 'raw_items'), [firestore]);
   const { data: rawItemsData } = useCollection<RawItem>(rawItemsQuery);
@@ -213,10 +243,85 @@ export default function MenuManagement() {
         </Button>
       </header>
 
+      {/* Search and Filters bar */}
+      <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search items by name or description..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="pl-10 h-11 rounded-2xl bg-white border border-secondary/20 shadow-sm focus-visible:ring-primary/20"
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="w-full sm:w-[160px]">
+            <Select 
+              value={typeFilter} 
+              onValueChange={(val: any) => setTypeFilter(val)}
+            >
+              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                <SelectValue placeholder="Dietary Type" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Diets</SelectItem>
+                <SelectItem value="Veg">Veg Only</SelectItem>
+                <SelectItem value="Non-Veg">Non-Veg Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full sm:w-[160px]">
+            <Select 
+              value={showFilter} 
+              onValueChange={(val: any) => setShowFilter(val)}
+            >
+              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                <SelectValue placeholder="Visibility" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Visibility</SelectItem>
+                <SelectItem value="visible">Visible Only</SelectItem>
+                <SelectItem value="hidden">Hidden Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(searchQuery || typeFilter !== 'all' || showFilter !== 'all') && (
+            <Button 
+              variant="ghost" 
+              onClick={() => { setSearchQuery(''); setTypeFilter('all'); setShowFilter('all'); }} 
+              className="h-11 px-4 rounded-xl font-semibold text-xs text-muted-foreground hover:text-destructive shrink-0"
+            >
+              Reset Filters
+            </Button>
+          )}
+        </div>
+      </div>
+
       {menuLoading ? (
         <div className="flex flex-col items-center justify-center py-24">
           <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
           <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Syncing Menu...</p>
+        </div>
+      ) : menu.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-secondary/10 p-8 text-center shadow-sm">
+          <div className="p-4 bg-secondary/10 rounded-full mb-4">
+            <Search className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h3 className="font-headline font-bold text-lg text-accent">No Items Found</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mt-1">
+            We couldn't find any items matching your keywords and active filters. Try resetting filters or search query.
+          </p>
+          {(searchQuery || typeFilter !== 'all' || showFilter !== 'all') && (
+            <Button 
+              variant="outline" 
+              onClick={() => { setSearchQuery(''); setTypeFilter('all'); setShowFilter('all'); }} 
+              className="mt-4 rounded-xl px-4 py-2 text-xs font-bold"
+            >
+              Clear Filters & Try Again
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
