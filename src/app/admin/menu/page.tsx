@@ -26,7 +26,11 @@ export default function MenuManagement() {
   // Firestore Data
   const menuQuery = useMemoFirebase(() => collection(firestore, 'menu_items'), [firestore]);
   const { data: menuData, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
-  const menu = menuData || [];
+  const menu = useMemo(() => {
+    return [...(menuData || [])].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true })
+    );
+  }, [menuData]);
 
   const rawItemsQuery = useMemoFirebase(() => collection(firestore, 'raw_items'), [firestore]);
   const { data: rawItemsData } = useCollection<RawItem>(rawItemsQuery);

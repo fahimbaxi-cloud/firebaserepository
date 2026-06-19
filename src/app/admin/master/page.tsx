@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Supplier, RawItem, Unit, Category, RawItemConversion, ExpenseCategory, IncomeCategory, GLAccount, GLAccountGroup } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, PlusCircle, MinusCircle, LayoutGrid, Tags, Ruler, ArrowUpDown, ChevronUp, ChevronDown, TrendingUp, TrendingDown, Loader2, BookOpen, ShieldCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, PlusCircle, MinusCircle, LayoutGrid, Tags, Ruler, ArrowUpDown, ChevronUp, ChevronDown, TrendingUp, TrendingDown, Loader2, BookOpen, ShieldCheck, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -70,6 +70,10 @@ export default function MasterModulePage() {
   const [incomeCatForm, setIncomeCatForm] = useState<Partial<IncomeCategory>>({});
   const [glAccountForm, setGLAccountForm] = useState<Partial<GLAccount>>({ group: 'Capital', openingBalance: 0, openingType: 'Credit' });
 
+  // Search & Filter States
+  const [rawItemSearch, setRawItemSearch] = useState('');
+  const [rawItemCategoryFilter, setRawItemCategoryFilter] = useState('all');
+
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
       key,
@@ -106,7 +110,19 @@ export default function MasterModulePage() {
   }, [suppliers, sortConfig]);
 
   const sortedRawItems = useMemo(() => {
-    const data = [...rawItems];
+    let data = [...rawItems];
+    
+    // Filter by search
+    if (rawItemSearch.trim() !== '') {
+      const searchLower = rawItemSearch.toLowerCase();
+      data = data.filter(item => (item.name || '').toLowerCase().includes(searchLower));
+    }
+    
+    // Filter by category
+    if (rawItemCategoryFilter !== 'all') {
+      data = data.filter(item => item.categoryId === rawItemCategoryFilter);
+    }
+
     if (sortConfig.key && sortConfig.direction) {
       data.sort((a, b) => {
         if (sortConfig.key === 'currentStock') {
@@ -129,7 +145,7 @@ export default function MasterModulePage() {
       });
     }
     return data;
-  }, [rawItems, sortConfig]);
+  }, [rawItems, sortConfig, rawItemSearch, rawItemCategoryFilter]);
 
   const sortedGLAccounts = useMemo(() => {
     const data = [...glAccounts];
@@ -348,6 +364,42 @@ export default function MasterModulePage() {
               <PlusCircle className="w-4 h-4 mr-2" /> Add Raw Item
             </Button>
           </div>
+
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search raw item by name..." 
+                value={rawItemSearch} 
+                onChange={(e) => setRawItemSearch(e.target.value)} 
+                className="pl-10 h-11 rounded-2xl bg-white border border-secondary/20 shadow-sm focus-visible:ring-primary/20"
+              />
+            </div>
+            <div className="w-full sm:w-[220px]">
+              <Select value={rawItemCategoryFilter} onValueChange={setRawItemCategoryFilter}>
+                <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(rawItemSearch || rawItemCategoryFilter !== 'all') && (
+              <Button 
+                variant="ghost" 
+                onClick={() => { setRawItemSearch(''); setRawItemCategoryFilter('all'); }} 
+                className="h-11 px-4 rounded-xl font-semibold text-xs text-muted-foreground hover:text-destructive shrink-0"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
           <Card className="rounded-2xl overflow-hidden border-none shadow-sm">
             <Table>
               <TableHeader>
