@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { MenuItem, RawItem, MenuItemIngredient, Unit, BroadcastPackage } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 
@@ -29,7 +30,11 @@ export default function MenuManagement() {
 
   const rawItemsQuery = useMemoFirebase(() => collection(firestore, 'raw_items'), [firestore]);
   const { data: rawItemsData } = useCollection<RawItem>(rawItemsQuery);
-  const rawItems = rawItemsData || [];
+  const rawItems = useMemo(() => {
+    return [...(rawItemsData || [])].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true })
+    );
+  }, [rawItemsData]);
 
   const unitsQuery = useMemoFirebase(() => collection(firestore, 'units'), [firestore]);
   const { data: unitsData } = useCollection<Unit>(unitsQuery);
@@ -308,16 +313,11 @@ export default function MenuManagement() {
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end bg-secondary/20 p-3 rounded-2xl border border-secondary/30 group">
                       <div className="col-span-5 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Raw Item</Label>
-                        <Select value={ing.rawItemId} onValueChange={v => handleIngredientChange(idx, 'rawItemId', v)}>
-                          <SelectTrigger className="h-10 rounded-xl bg-white border-none text-xs">
-                            <SelectValue placeholder="Pick item" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl">
-                            {rawItems.map(ri => (
-                              <SelectItem key={ri.id} value={ri.id}>{ri.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <RawItemSelector 
+                          value={ing.rawItemId} 
+                          onChange={v => handleIngredientChange(idx, 'rawItemId', v)} 
+                          rawItems={rawItems}
+                        />
                       </div>
                       <div className="col-span-3 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Qty</Label>
@@ -375,5 +375,82 @@ export default function MenuManagement() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+interface RawItemSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+  rawItems: RawItem[];
+}
+
+function RawItemSelector({ value, onChange, rawItems }: RawItemSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  
+  const selectedItem = rawItems.find(ri => ri.id === value);
+  
+  const filtered = useMemo(() => {
+    return rawItems.filter(ri => 
+      (ri.name || '').toLowerCase().includes(search.toLowerCase())
+    );
+  }, [rawItems, search]);
+
+  return (
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) setSearch("");
+    }}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="outline" 
+          role="combobox" 
+          aria-expanded={open} 
+          className="w-full h-10 rounded-xl bg-white border-none text-xs justify-between font-normal text-foreground px-3 flex items-center"
+        >
+          <span className="truncate">
+            {selectedItem ? selectedItem.name : "Pick item"}
+          </span>
+          <span className="text-muted-foreground ml-2 text-[10px]">▼</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[200px] p-2 rounded-2xl shadow-xl border border-secondary/30 bg-white" align="start">
+        <div className="relative mb-2">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input 
+            placeholder="Search raw item..." 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            className="pl-8 pr-3 h-8 text-xs rounded-lg border border-secondary/30 bg-secondary/5 focus-visible:ring-primary/20"
+          />
+        </div>
+        <ScrollArea className="h-[200px] pr-1">
+          {filtered.length > 0 ? (
+            <div className="space-y-1">
+              {filtered.map(ri => (
+                <button
+                  key={ri.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(ri.id);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors truncate block ${
+                    ri.id === value 
+                      ? "bg-primary text-white" 
+                      : "hover:bg-primary/10 text-foreground"
+                  }`}
+                >
+                  {ri.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-[10px] text-muted-foreground py-4 font-bold uppercase">No items found</p>
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
   );
 }
