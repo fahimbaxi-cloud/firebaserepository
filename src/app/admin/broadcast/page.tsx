@@ -32,7 +32,6 @@ import {
   ZoomIn,
   Search
 } from 'lucide-react';
-import { adminMenuNotificationGeneration } from '@/ai/flows/admin-menu-notification-generation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
@@ -173,9 +172,7 @@ export default function BroadcastPage() {
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [packageName, setPackageName] = useState('');
   const [message, setMessage] = useState('');
-  const [specialOffers, setSpecialOffers] = useState('');
   const [packagePrice, setPackagePrice] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -245,71 +242,20 @@ export default function BroadcastPage() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleSend = () => {
+    if (!packageName) {
+      toast({ title: "Name Required", description: "Please enter a name for this package.", variant: "destructive" });
+      return;
+    }
+
     if (broadcastType === 'daily' && dailySelectedItems.length === 0) {
-      toast({ title: "No Items", description: "Select items for your daily special.", variant: "destructive" });
+      toast({ title: "No Items Selected", description: "Please select at least one menu item for your daily special.", variant: "destructive" });
       return;
     }
 
     const assignedDatesCount = Object.keys(monthlyAssignments).filter(k => (monthlyAssignments[k]?.length || 0) > 0).length;
     if (broadcastType === 'monthly' && assignedDatesCount === 0) {
-      toast({ title: "Empty Plan", description: "Assign menu items to the monthly calendar.", variant: "destructive" });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      let menuItemsToGenerate: any[] = [];
-      let context = "";
-
-      if (broadcastType === 'daily') {
-        menuItemsToGenerate = (menuItems || [])
-          .filter(item => dailySelectedItems.includes(item.id))
-          .map(item => ({
-            itemName: item.name || 'Unnamed Item',
-            vegNonVegType: item.type || 'Veg',
-            timeSlot: item.slot || 'Morning',
-            price: item.price || 0,
-            description: item.description || 'Nutritious meal'
-          }));
-        context = `Daily menu for ${format(selectedDate || new Date(), 'PPP')}`;
-      } else {
-        const uniqueItemIds = Array.from(new Set(Object.values(monthlyAssignments).flat()));
-        menuItemsToGenerate = (menuItems || [])
-          .filter(item => uniqueItemIds.includes(item.id))
-          .map(item => ({
-            itemName: item.name || 'Unnamed Item',
-            vegNonVegType: item.type || 'Veg',
-            timeSlot: item.slot || 'Morning',
-            price: item.price || 0,
-            description: item.description || 'Nutritious meal'
-          }));
-        context = `Monthly subscription for ${format(new Date(currentYear, currentMonth), 'MMMM yyyy')}`;
-      }
-
-      const result = await adminMenuNotificationGeneration({
-        menuItems: menuItemsToGenerate,
-        specialOffers: `${specialOffers} (${context})`.trim(),
-        packagePrice: packagePrice ? Number(packagePrice) : undefined
-      });
-
-      if (result && result.notificationMessage) {
-        setMessage(result.notificationMessage);
-        toast({ title: "Message Ready!", description: "AI has crafted your broadcast content." });
-      } else {
-        throw new Error('No message generated');
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Generation Failed", description: "The AI service encountered an issue. Please check item details.", variant: "destructive" });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleSend = () => {
-    if (!packageName) {
-      toast({ title: "Name Required", description: "Please enter a name for this package.", variant: "destructive" });
+      toast({ title: "Empty Plan", description: "Assign at least one menu item to the monthly calendar.", variant: "destructive" });
       return;
     }
 
@@ -976,7 +922,7 @@ export default function BroadcastPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-6 h-6" />
+                        <Megaphone className="w-6 h-6" />
                         Pricing & Visuals
                       </div>
                     </CardTitle>
@@ -1022,49 +968,30 @@ export default function BroadcastPage() {
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                       </div>
                     </div>
-
-                    <Button 
-                      onClick={handleGenerate} 
-                      disabled={isGenerating}
-                      className="w-full bg-white text-accent hover:bg-white/90 rounded-[1.5rem] h-16 font-black text-lg shadow-2xl"
-                    >
-                      {isGenerating ? <RefreshCw className="w-6 h-6 mr-3 animate-spin" /> : <Sparkles className="w-6 h-6 mr-3" />}
-                      {message ? "Rewrite Message" : "Generate Description"}
-                    </Button>
                   </CardContent>
                 </Card>
 
-                {message && (
-                  <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white animate-in zoom-in-95 duration-300">
-                    <CardContent className="p-7 space-y-6">
-                      <div className="space-y-3">
-                        <Label className="font-black text-lg text-accent">Marketing Copy</Label>
-                        <Textarea 
-                          value={message} 
-                          onChange={(e) => setMessage(e.target.value)}
-                          className="rounded-2xl min-h-[160px] bg-secondary/20 border-none font-bold text-sm leading-relaxed"
-                        />
-                      </div>
-                      
-                      <Button 
-                        onClick={handleSend} 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white rounded-[1.5rem] h-16 font-black text-xl shadow-2xl shadow-green-200"
-                      >
-                        <Send className="w-6 h-6 mr-3" />
-                        {editingPackageId ? 'Update Broadcast' : 'Push To Customers'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {!message && (
-                  <div className="p-10 border-4 border-dashed border-secondary/50 rounded-[3rem] flex flex-col items-center justify-center text-center space-y-4 bg-white/50">
-                    <div className="p-5 bg-secondary rounded-full">
-                      <Info className="w-10 h-10 text-muted-foreground/30" />
+                <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white">
+                  <CardContent className="p-7 space-y-6">
+                    <div className="space-y-3">
+                      <Label className="font-black text-lg text-accent-foreground">Broadcast Description</Label>
+                      <Textarea 
+                        placeholder="Enter description or marketing copy..."
+                        value={message} 
+                        onChange={(e) => setMessage(e.target.value)}
+                        className="rounded-2xl min-h-[160px] bg-secondary/20 border-none font-bold text-sm leading-relaxed"
+                      />
                     </div>
-                    <p className="text-sm font-bold text-muted-foreground max-w-[200px]">Define your package contents to create a broadcast message.</p>
-                  </div>
-                )}
+                    
+                    <Button 
+                      onClick={handleSend} 
+                      className="w-full bg-green-600 hover:bg-green-700 text-white rounded-[1.5rem] h-16 font-black text-xl shadow-2xl shadow-green-200"
+                    >
+                      <Send className="w-6 h-6 mr-3" />
+                      {editingPackageId ? 'Update Broadcast' : 'Push To Customers'}
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </Tabs>
