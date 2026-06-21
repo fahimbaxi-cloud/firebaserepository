@@ -15,9 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getMonth, getYear, isValid, parse } from 'date-fns';
 import { 
-  Sparkles, 
   Send, 
-  RefreshCw, 
   Info, 
   PlusCircle, 
   Calendar as CalendarIcon, 
@@ -30,9 +28,9 @@ import {
   Upload, 
   Loader2,
   ZoomIn,
-  Search
+  Search,
+  X
 } from 'lucide-react';
-import { adminMenuNotificationGeneration } from '@/ai/flows/admin-menu-notification-generation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
@@ -173,9 +171,7 @@ export default function BroadcastPage() {
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [packageName, setPackageName] = useState('');
   const [message, setMessage] = useState('');
-  const [specialOffers, setSpecialOffers] = useState('');
   const [packagePrice, setPackagePrice] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -245,71 +241,14 @@ export default function BroadcastPage() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (broadcastType === 'daily' && dailySelectedItems.length === 0) {
-      toast({ title: "No Items", description: "Select items for your daily special.", variant: "destructive" });
-      return;
-    }
-
-    const assignedDatesCount = Object.keys(monthlyAssignments).filter(k => (monthlyAssignments[k]?.length || 0) > 0).length;
-    if (broadcastType === 'monthly' && assignedDatesCount === 0) {
-      toast({ title: "Empty Plan", description: "Assign menu items to the monthly calendar.", variant: "destructive" });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      let menuItemsToGenerate: any[] = [];
-      let context = "";
-
-      if (broadcastType === 'daily') {
-        menuItemsToGenerate = (menuItems || [])
-          .filter(item => dailySelectedItems.includes(item.id))
-          .map(item => ({
-            itemName: item.name || 'Unnamed Item',
-            vegNonVegType: item.type || 'Veg',
-            timeSlot: item.slot || 'Morning',
-            price: item.price || 0,
-            description: item.description || 'Nutritious meal'
-          }));
-        context = `Daily menu for ${format(selectedDate || new Date(), 'PPP')}`;
-      } else {
-        const uniqueItemIds = Array.from(new Set(Object.values(monthlyAssignments).flat()));
-        menuItemsToGenerate = (menuItems || [])
-          .filter(item => uniqueItemIds.includes(item.id))
-          .map(item => ({
-            itemName: item.name || 'Unnamed Item',
-            vegNonVegType: item.type || 'Veg',
-            timeSlot: item.slot || 'Morning',
-            price: item.price || 0,
-            description: item.description || 'Nutritious meal'
-          }));
-        context = `Monthly subscription for ${format(new Date(currentYear, currentMonth), 'MMMM yyyy')}`;
-      }
-
-      const result = await adminMenuNotificationGeneration({
-        menuItems: menuItemsToGenerate,
-        specialOffers: `${specialOffers} (${context})`.trim(),
-        packagePrice: packagePrice ? Number(packagePrice) : undefined
-      });
-
-      if (result && result.notificationMessage) {
-        setMessage(result.notificationMessage);
-        toast({ title: "Message Ready!", description: "AI has crafted your broadcast content." });
-      } else {
-        throw new Error('No message generated');
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Generation Failed", description: "The AI service encountered an issue. Please check item details.", variant: "destructive" });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleSend = () => {
     if (!packageName) {
       toast({ title: "Name Required", description: "Please enter a name for this package.", variant: "destructive" });
+      return;
+    }
+
+    if (!message || !message.trim()) {
+      toast({ title: "Description Required", description: "Please enter a description for this package.", variant: "destructive" });
       return;
     }
 
@@ -368,7 +307,6 @@ export default function BroadcastPage() {
     setBroadcastType(pkg.type);
     setPackagePrice(pkg.price.toString());
     setMessage(pkg.message || '');
-    setSpecialOffers('');
     setImagePreview(pkg.imageUrl || null);
     
     if (pkg.type === 'daily' && pkg.dateContext) {
@@ -435,7 +373,6 @@ export default function BroadcastPage() {
     setMonthlyAssignments({});
     setMessage('');
     setPackagePrice('');
-    setSpecialOffers('');
     setImagePreview(null);
     setBroadcastType('daily');
     setSelectedDate(new Date());
@@ -835,6 +772,40 @@ export default function BroadcastPage() {
                               )}
                             </div>
                           </ScrollArea>
+                          {menuItems && (menuItems.filter(item => dailySelectedItems.includes(item.id)).length > 0) && (
+                            <div className="p-4 border-2 border-primary/20 bg-primary/5 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-3 duration-200">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-xs font-bold text-primary uppercase tracking-wider">
+                                  Selected Items ({menuItems.filter(item => dailySelectedItems.includes(item.id)).length})
+                                </Label>
+                                <Button 
+                                  variant="link" 
+                                  onClick={() => setDailySelectedItems([])} 
+                                  className="h-auto p-0 text-xs font-extrabold text-destructive hover:no-underline"
+                                >
+                                  Clear All
+                                </Button>
+                              </div>
+                              <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1">
+                                {menuItems.filter(item => dailySelectedItems.includes(item.id)).map((item) => (
+                                  <div 
+                                    key={item.id} 
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-primary/20 rounded-xl text-xs font-bold text-accent shadow-sm"
+                                  >
+                                    <span>{item.name}</span>
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleToggleDailyItem(item.id)}
+                                      className="text-muted-foreground hover:text-destructive focus:outline-none transition-colors border-none bg-transparent"
+                                      title="Remove item"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
@@ -976,7 +947,7 @@ export default function BroadcastPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-6 h-6" />
+                        <Megaphone className="w-6 h-6 text-white/90" />
                         Pricing & Visuals
                       </div>
                     </CardTitle>
@@ -1022,49 +993,30 @@ export default function BroadcastPage() {
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                       </div>
                     </div>
-
-                    <Button 
-                      onClick={handleGenerate} 
-                      disabled={isGenerating}
-                      className="w-full bg-white text-accent hover:bg-white/90 rounded-[1.5rem] h-16 font-black text-lg shadow-2xl"
-                    >
-                      {isGenerating ? <RefreshCw className="w-6 h-6 mr-3 animate-spin" /> : <Sparkles className="w-6 h-6 mr-3" />}
-                      {message ? "Rewrite Message" : "Generate Description"}
-                    </Button>
                   </CardContent>
                 </Card>
 
-                {message && (
-                  <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white animate-in zoom-in-95 duration-300">
-                    <CardContent className="p-7 space-y-6">
-                      <div className="space-y-3">
-                        <Label className="font-black text-lg text-accent">Marketing Copy</Label>
-                        <Textarea 
-                          value={message} 
-                          onChange={(e) => setMessage(e.target.value)}
-                          className="rounded-2xl min-h-[160px] bg-secondary/20 border-none font-bold text-sm leading-relaxed"
-                        />
-                      </div>
-                      
-                      <Button 
-                        onClick={handleSend} 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white rounded-[1.5rem] h-16 font-black text-xl shadow-2xl shadow-green-200"
-                      >
-                        <Send className="w-6 h-6 mr-3" />
-                        {editingPackageId ? 'Update Broadcast' : 'Push To Customers'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {!message && (
-                  <div className="p-10 border-4 border-dashed border-secondary/50 rounded-[3rem] flex flex-col items-center justify-center text-center space-y-4 bg-white/50">
-                    <div className="p-5 bg-secondary rounded-full">
-                      <Info className="w-10 h-10 text-muted-foreground/30" />
+                <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white">
+                  <CardContent className="p-7 space-y-6">
+                    <div className="space-y-3">
+                      <Label className="font-black text-lg text-accent">Broadcast Description</Label>
+                      <Textarea 
+                        value={message} 
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="e.g. Treat your tastebuds with our hand-picked healthy items of the day!"
+                        className="rounded-2xl min-h-[160px] bg-secondary/20 border-none font-bold text-sm leading-relaxed text-accent"
+                      />
                     </div>
-                    <p className="text-sm font-bold text-muted-foreground max-w-[200px]">Define your package contents to create a broadcast message.</p>
-                  </div>
-                )}
+                    
+                    <Button 
+                      onClick={handleSend} 
+                      className="w-full bg-green-600 hover:bg-green-700 text-white rounded-[1.5rem] h-16 font-black text-xl shadow-2xl shadow-green-200 cursor-pointer"
+                    >
+                      <Send className="w-6 h-6 mr-3" />
+                      {editingPackageId ? 'Update Broadcast' : 'Push To Customers'}
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </Tabs>
