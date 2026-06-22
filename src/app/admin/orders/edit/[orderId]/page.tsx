@@ -15,12 +15,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { User, TimeSlot, BroadcastPackage, MenuItem, Order, OrderStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { format, addDays, isValid, parseISO } from 'date-fns';
-import { Search, Package, User as UserIcon, MapPin, Clock, ArrowLeft, CheckCircle2, Calendar as CalendarIcon, Info, Minus, Plus, ShoppingCart, Loader2, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
+import { format, addDays, isValid, parseISO, parse } from 'date-fns';
+import { Search, Package, User as UserIcon, MapPin, Clock, ArrowLeft, CheckCircle2, Calendar as CalendarIcon, Info, Minus, Plus, ShoppingCart, Loader2, Sparkles, Trash2, AlertTriangle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const parseDateSafe = (d: any): Date => {
   if (!d) return new Date();
@@ -108,27 +109,61 @@ export default function EditOrderPage() {
     );
   }, [allUsers, customerSearch]);
 
-  const availablePackages = useMemo(() => {
-    if (!selectedDate || !broadcastPackages) return [];
-    const targetDailyDate = addDays(selectedDate, 1);
-    const dailyDateStr = format(targetDailyDate, "MMMM d, yyyy");
-    const monthStr = format(selectedDate, "MMMM yyyy");
+  const getPackageDate = (pkg: BroadcastPackage): Date => {
+    if (!pkg.dateContext) return new Date(pkg.createdAt ? String(pkg.createdAt) : 0);
+    try {
+      if (pkg.type === 'daily') {
+        const parsed = parse(pkg.dateContext, 'MMMM d, yyyy', new Date());
+        if (isValid(parsed)) return parsed;
+      } else {
+        const parsed = parse(pkg.dateContext, 'MMMM yyyy', new Date());
+        if (isValid(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return new Date(pkg.createdAt ? String(pkg.createdAt) : 0);
+  };
 
-    const filtered = broadcastPackages.filter(pkg => 
-      (pkg.type === 'daily' && pkg.dateContext === dailyDateStr) || 
-      (pkg.type === 'monthly' && pkg.dateContext === monthStr)
-    );
-
-    // Ensure the package currently in the order is always visible in the package selection list
-    if (order) {
-      const orderPkg = broadcastPackages.find(p => p.name === order.packageName);
-      if (orderPkg && !filtered.some(p => p.id === orderPkg.id)) {
-        filtered.push(orderPkg);
+  const sortedDailyPackages = useMemo(() => {
+    if (!broadcastPackages) return [];
+    const list = [...broadcastPackages].filter(pkg => pkg.type === 'daily');
+    
+    // Ensure the package currently in the order is always visible
+    if (order && order.type === 'Daily') {
+      const orderPkg = broadcastPackages.find(p => p.name === order.packageName && p.type === 'daily');
+      if (orderPkg && !list.some(p => p.id === orderPkg.id)) {
+        list.push(orderPkg);
       }
     }
+    
+    return list.sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
+  }, [broadcastPackages, order]);
 
-    return filtered;
-  }, [selectedDate, broadcastPackages, order]);
+  const sortedSchemePackages = useMemo(() => {
+    if (!broadcastPackages) return [];
+    const list = [...broadcastPackages].filter(pkg => pkg.type === 'monthly');
+    
+    // Ensure the package currently in the order is always visible
+    if (order && order.type === 'Subscription') {
+      const orderPkg = broadcastPackages.find(p => p.name === order.packageName && p.type === 'monthly');
+      if (orderPkg && !list.some(p => p.id === orderPkg.id)) {
+        list.push(orderPkg);
+      }
+    }
+    
+    return list.sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
+  }, [broadcastPackages, order]);
+
+  const targetDailyDateStr = useMemo(() => {
+    if (!selectedDate) return '';
+    return format(addDays(selectedDate, 1), "MMMM d, yyyy");
+  }, [selectedDate]);
+
+  const targetMonthStr = useMemo(() => {
+    if (!selectedDate) return '';
+    return format(selectedDate, "MMMM yyyy");
+  }, [selectedDate]);
 
   const cartPackages = useMemo(() => {
     return Object.entries(selectedPackages)
@@ -315,30 +350,161 @@ export default function EditOrderPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                {availablePackages.map((pkg) => (
-                  <div 
-                    key={pkg.id} 
-                    className={cn(
-                      "p-5 border-2 rounded-[2rem] transition-all flex flex-col justify-between",
-                      selectedPackages[pkg.id] > 0 ? "border-primary bg-primary/5 shadow-md" : "border-secondary/30 bg-white"
-                    )}
-                  >
-                    <div className="space-y-2">
-                      <Badge variant="secondary" className="uppercase text-[9px] font-black">{pkg.type}</Badge>
-                      <p className="font-black text-sm text-accent">{pkg.name}</p>
-                      <span className="font-black text-primary text-xl">Rs {pkg.price}</span>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between bg-secondary/20 p-2 rounded-2xl">
-                      <span className="text-xs font-bold px-2">Quantity</span>
-                      <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 bg-white" onClick={() => updatePackageQuantity(pkg.id, -1)}><Minus className="w-4 h-4" /></Button>
-                        <span className="font-black text-lg">{selectedPackages[pkg.id] || 0}</span>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 bg-primary text-white" onClick={() => updatePackageQuantity(pkg.id, 1)}><Plus className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
+              <div className="space-y-6 pt-4 border-t border-secondary/30">
+                <Tabs defaultValue="daily" className="w-full">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                    <TabsList className="grid grid-cols-2 w-full sm:w-[320px] bg-secondary/20 p-1 rounded-2xl h-12">
+                      <TabsTrigger value="daily" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Daily Package</TabsTrigger>
+                      <TabsTrigger value="scheme" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Scheme</TabsTrigger>
+                    </TabsList>
+                    <Badge variant="outline" className="border-secondary text-[9px] font-black px-2 py-1 max-w-max">LIVE PACKAGES</Badge>
                   </div>
-                ))}
+
+                  {packagesLoading ? (
+                    <div className="p-12 text-center">
+                      <Loader2 className="animate-spin mx-auto w-8 h-8 text-primary" />
+                      <p className="mt-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">Querying Packages...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <TabsContent value="daily" className="space-y-4 outline-none">
+                        {sortedDailyPackages.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {sortedDailyPackages.map((pkg) => {
+                              const isTargetMatch = pkg.dateContext === targetDailyDateStr;
+                              return (
+                                <div 
+                                  key={pkg.id} 
+                                  className={cn(
+                                    "p-5 border-2 rounded-[2rem] transition-all flex flex-col justify-between h-full group relative overflow-hidden",
+                                    selectedPackages[pkg.id] > 0 
+                                      ? "border-primary bg-primary/5 shadow-md" 
+                                      : isTargetMatch 
+                                        ? "border-green-300 bg-green-50/40 hover:border-green-400" 
+                                        : "border-secondary/30 bg-white hover:border-primary/20"
+                                  )}
+                                >
+                                  {isTargetMatch && (
+                                    <div className="absolute top-0 right-0 bg-green-500 text-white font-black text-[8px] px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                      <Check className="w-2.5 h-2.5" /> Target Date Match
+                                    </div>
+                                  )}
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <span className="text-[10px] font-bold text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded">
+                                        {pkg.dateContext}
+                                      </span>
+                                      <span className="font-black text-primary text-xl">Rs {pkg.price}</span>
+                                    </div>
+                                    <p className="font-black text-sm text-accent leading-tight line-clamp-2 pr-10">{pkg.name}</p>
+                                    <p className="text-[10px] text-muted-foreground italic font-medium">"{pkg.message}"</p>
+                                  </div>
+                                  <div className="mt-4 flex items-center justify-between bg-secondary/20 p-2 rounded-2xl">
+                                    <span className="text-xs font-bold px-2">Quantity</span>
+                                    <div className="flex items-center gap-3">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-white shadow-sm hover:text-destructive animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, -1)}
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <span className="font-black text-lg w-4 text-center">{selectedPackages[pkg.id] || 0}</span>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-primary text-white hover:bg-primary/90 hover:text-white shadow-md animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, 1)}
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-10 border-2 border-dashed border-secondary/50 rounded-[2rem] flex flex-col items-center justify-center text-center space-y-3 bg-secondary/5 opacity-60">
+                            <div className="p-4 bg-white rounded-full">
+                              <Info className="w-8 h-8 text-muted-foreground/30" />
+                            </div>
+                            <p className="text-sm font-bold text-muted-foreground max-w-[250px]">No daily packages found in Firestore.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="scheme" className="space-y-4 outline-none">
+                        {sortedSchemePackages.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {sortedSchemePackages.map((pkg) => {
+                              const isTargetMatch = pkg.dateContext === targetMonthStr;
+                              return (
+                                <div 
+                                  key={pkg.id} 
+                                  className={cn(
+                                    "p-5 border-2 rounded-[2rem] transition-all flex flex-col justify-between h-full group relative overflow-hidden",
+                                    selectedPackages[pkg.id] > 0 
+                                      ? "border-primary bg-primary/5 shadow-md" 
+                                      : isTargetMatch 
+                                        ? "border-green-300 bg-green-50/40 hover:border-green-400" 
+                                        : "border-secondary/30 bg-white hover:border-primary/20"
+                                  )}
+                                >
+                                  {isTargetMatch && (
+                                    <div className="absolute top-0 right-0 bg-green-500 text-white font-black text-[8px] px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                      <Check className="w-2.5 h-2.5" /> Target Month Match
+                                    </div>
+                                  )}
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <span className="text-[10px] font-bold text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded">
+                                        {pkg.dateContext}
+                                      </span>
+                                      <span className="font-black text-primary text-xl">Rs {pkg.price}</span>
+                                    </div>
+                                    <p className="font-black text-sm text-accent leading-tight line-clamp-2 pr-10">{pkg.name}</p>
+                                    <p className="text-[10px] text-muted-foreground italic font-medium">"{pkg.message}"</p>
+                                  </div>
+                                  <div className="mt-4 flex items-center justify-between bg-secondary/20 p-2 rounded-2xl">
+                                    <span className="text-xs font-bold px-2">Quantity</span>
+                                    <div className="flex items-center gap-3">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-white shadow-sm hover:text-destructive animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, -1)}
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <span className="font-black text-lg w-4 text-center">{selectedPackages[pkg.id] || 0}</span>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-primary text-white hover:bg-primary/90 hover:text-white shadow-md animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, 1)}
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-10 border-2 border-dashed border-secondary/50 rounded-[2rem] flex flex-col items-center justify-center text-center space-y-3 bg-secondary/5 opacity-60">
+                            <div className="p-4 bg-white rounded-full">
+                              <Info className="w-8 h-8 text-muted-foreground/30" />
+                            </div>
+                            <p className="text-sm font-bold text-muted-foreground max-w-[250px]">No schemes found in Firestore.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                    </>
+                  )}
+                </Tabs>
               </div>
             </CardContent>
           </Card>
