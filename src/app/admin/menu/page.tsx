@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
@@ -440,16 +441,16 @@ export default function MenuManagement() {
                       </div>
                       <div className="col-span-3 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Unit</Label>
-                        <Select value={ing.unitId} onValueChange={v => handleIngredientChange(idx, 'unitId', v)}>
-                          <SelectTrigger className="h-10 rounded-xl bg-white border-none text-xs">
-                            <SelectValue placeholder="Unit" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl">
-                            {units.map(u => (
-                              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={ing.unitId}
+                          onChange={v => handleIngredientChange(idx, 'unitId', v)}
+                          options={units}
+                          getOptionLabel={u => u.name}
+                          getOptionValue={u => u.id}
+                          placeholder="Unit"
+                          searchPlaceholder="Search unit..."
+                          triggerClassName="h-10 border-none bg-white font-normal shadow-none"
+                        />
                       </div>
                       <div className="col-span-1 flex items-center justify-center h-10">
                         <Button variant="ghost" size="icon" onClick={() => handleRemoveIngredient(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">

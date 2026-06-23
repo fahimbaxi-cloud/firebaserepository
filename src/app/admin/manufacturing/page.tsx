@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -265,16 +266,16 @@ export default function ManufacturingPage() {
 
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Target Package</Label>
-                <Select value={selectedPackageId} onValueChange={setSelectedPackageId}>
-                  <SelectTrigger className="rounded-xl h-12 bg-secondary/20 border-none font-bold">
-                    <SelectValue placeholder="Select broadcasted package" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {broadcastPackages.map(pkg => (
-                      <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={selectedPackageId}
+                  onChange={setSelectedPackageId}
+                  options={broadcastPackages}
+                  getOptionLabel={pkg => pkg.name}
+                  getOptionValue={pkg => pkg.id}
+                  placeholder="Select broadcasted package"
+                  searchPlaceholder="Search package..."
+                  triggerClassName="h-12 bg-secondary/20 border-none font-bold text-sm"
+                />
               </div>
 
               <div className="space-y-2">
