@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { GeneralTransaction, ExpenseCategory, IncomeCategory } from '@/lib/types';
@@ -55,6 +55,17 @@ export default function CashbookPage() {
     paymentMethod: 'Cash' as 'Cash' | 'UPI' | 'Bank Transfer',
     notes: ''
   });
+
+  const categoryOptions = useMemo(() => {
+    const list = form.type === 'Income' ? incomeCategories : expenseCategories;
+    return list.map(c => ({ value: c.id, label: c.name }));
+  }, [form.type, incomeCategories, expenseCategories]);
+
+  const paymentMethodOptions = useMemo(() => [
+    { value: 'Cash', label: 'Cash' },
+    { value: 'UPI', label: 'UPI / Digital' },
+    { value: 'Bank Transfer', label: 'Bank Transfer' }
+  ], []);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -217,7 +228,63 @@ export default function CashbookPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="rounded-[2.5rem] max-w-lg">
           <DialogHeader><DialogTitle className="text-2xl font-headline flex items-center gap-2"><Wallet className="w-6 h-6 text-accent" />{editingId ? 'Edit Entry' : 'New Transaction'}</DialogTitle></DialogHeader>
-          <div className="py-4 space-y-5"><div className="space-y-2"><Label className="font-bold">Transaction Type</Label><Tabs value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v, categoryId: '' })}><TabsList className="grid grid-cols-2 w-full h-12 rounded-xl bg-secondary/30 p-1"><TabsTrigger value="Income" className="rounded-lg font-bold data-[state=active]:bg-green-100 data-[state=active]:text-green-700">Income</TabsTrigger><TabsTrigger value="Expense" className="rounded-lg font-bold data-[state=active]:bg-red-100 data-[state=active]:text-red-700">Expense</TabsTrigger></TabsList></Tabs></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" /></div><div className="space-y-2"><Label>Amount</Label><Input type="number" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={cn("rounded-xl h-11 font-black", form.type === 'Income' ? "text-green-600" : "text-red-600")} /></div></div><div className="space-y-2"><Label>Category (from Master)</Label><SearchableSelect value={form.categoryId} onChange={(v) => setForm({ ...form, categoryId: v })} options={form.type === 'Income' ? incomeCategories : expenseCategories} getOptionLabel={c => c.name} getOptionValue={c => c.id} placeholder="Select Category" searchPlaceholder="Search category..." /></div><div className="space-y-2"><Label>Payment Method</Label><Select value={form.paymentMethod} onValueChange={(v: any) => setForm({ ...form, paymentMethod: v })}><SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl"><SelectItem value="Cash">Cash</SelectItem><SelectItem value="UPI">UPI / Digital</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Notes</Label><Textarea placeholder="Details about the transaction..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl min-h-[80px]" /></div></div><DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button><Button onClick={handleSave} className="bg-primary hover:bg-primary/90 rounded-xl h-12 px-8 font-bold">{editingId ? 'Update Entry' : 'Save Transaction'}</Button></DialogFooter>
+          <div className="py-4 space-y-5">
+            <div className="space-y-2">
+              <Label className="font-bold">Transaction Type</Label>
+              <Tabs value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v, categoryId: '' })}>
+                <TabsList className="grid grid-cols-2 w-full h-12 rounded-xl bg-secondary/30 p-1">
+                  <TabsTrigger value="Income" className="rounded-lg font-bold data-[state=active]:bg-green-100 data-[state=active]:text-green-700">Income</TabsTrigger>
+                  <TabsTrigger value="Expense" className="rounded-lg font-bold data-[state=active]:bg-red-100 data-[state=active]:text-red-700">Expense</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input type="number" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={cn("rounded-xl h-11 font-black", form.type === 'Income' ? "text-green-600" : "text-red-600")} />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Category (from Master)</Label>
+              <SearchableSelector 
+                value={form.categoryId} 
+                onChange={(v) => setForm({ ...form, categoryId: v })} 
+                options={categoryOptions} 
+                placeholder="Select Category" 
+                searchPlaceholder="Search category..." 
+                triggerClassName="rounded-xl h-11 bg-white text-left" 
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <SearchableSelector 
+                value={form.paymentMethod} 
+                onChange={(v) => setForm({ ...form, paymentMethod: v as any })} 
+                options={paymentMethodOptions} 
+                placeholder="Select Payment Method" 
+                searchPlaceholder="Search payment methods..." 
+                triggerClassName="rounded-xl h-11 bg-white text-left" 
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea placeholder="Details about the transaction..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl min-h-[80px]" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button>
+            <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 rounded-xl h-12 px-8 font-bold">
+              {editingId ? 'Update Entry' : 'Save Transaction'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

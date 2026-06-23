@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { User, UserRole } from '@/lib/types';
@@ -31,6 +32,31 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [viewerRole, setViewerRole] = useState<UserRole>('admin');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'createdAt', direction: 'desc' });
+
+  const roleOptions = useMemo(() => {
+    const opts = [
+      { value: 'customer', label: 'Customer' },
+      { value: 'delivery', label: 'Delivery Partner' },
+      { value: 'admin', label: 'Administrator' }
+    ];
+    if (viewerRole === 'super-admin') {
+      opts.push({ value: 'super-admin', label: 'Super Admin' });
+    }
+    return opts;
+  }, [viewerRole]);
+
+  const roleFilterOptions = useMemo(() => {
+    const opts = [
+      { value: 'all', label: 'All Members' },
+      { value: 'customer', label: 'Customers' },
+      { value: 'delivery', label: 'Delivery Partners' },
+      { value: 'admin', label: 'Administrators' }
+    ];
+    if (viewerRole === 'super-admin') {
+      opts.push({ value: 'super-admin', label: 'Super Admins' });
+    }
+    return opts;
+  }, [viewerRole]);
 
   // Load the viewer role from Firestore
   useEffect(() => {
@@ -226,20 +252,14 @@ export default function UserManagementPage() {
             <div className="p-2 bg-secondary/50 rounded-xl ml-1">
               <Filter className="w-4 h-4 text-muted-foreground" />
             </div>
-            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
-              <SelectTrigger className="border-none bg-transparent h-10 shadow-none focus:ring-0">
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Members</SelectItem>
-                <SelectItem value="customer">Customers</SelectItem>
-                <SelectItem value="delivery">Delivery Partners</SelectItem>
-                <SelectItem value="admin">Administrators</SelectItem>
-                {viewerRole === 'super-admin' && (
-                  <SelectItem value="super-admin">Super Admins</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+            <SearchableSelector 
+              value={roleFilter} 
+              onChange={(v) => setRoleFilter(v as any)} 
+              options={roleFilterOptions} 
+              placeholder="All Roles" 
+              searchPlaceholder="Search roles..."
+              triggerClassName="border-none bg-transparent h-10 shadow-none focus:ring-0 text-left" 
+            />
           </div>
         </div>
       </header>
@@ -402,19 +422,13 @@ export default function UserManagementPage() {
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>Role Selection</Label>
-                <Select value={addForm.role} onValueChange={(v) => setAddForm({ ...addForm, role: v as any })}>
-                  <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="delivery">Delivery Partner</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    {viewerRole === 'super-admin' && (
-                      <SelectItem value="super-admin">Super Admin</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <SearchableSelector 
+                  value={addForm.role || ''} 
+                  onChange={(v) => setAddForm({ ...addForm, role: v as any })} 
+                  options={roleOptions} 
+                  placeholder="Select Role" 
+                  searchPlaceholder="Search roles..."
+                />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>Primary Address</Label>
@@ -478,19 +492,13 @@ export default function UserManagementPage() {
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v as any })}>
-                  <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="delivery">Delivery Partner</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    {viewerRole === 'super-admin' && (
-                      <SelectItem value="super-admin">Super Admin</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <SearchableSelector 
+                  value={editForm.role || ''} 
+                  onChange={(v) => setEditForm({ ...editForm, role: v as any })} 
+                  options={roleOptions} 
+                  placeholder="Select Role" 
+                  searchPlaceholder="Search roles..."
+                />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>Delivery Address</Label>

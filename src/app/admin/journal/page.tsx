@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { Textarea } from '@/components/ui/textarea';
 import { JournalEntry, Supplier, User, ExpenseCategory, IncomeCategory, GLAccount } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -68,6 +69,14 @@ export default function JournalVoucherPage() {
 
     return heads;
   }, [suppliers, users, expenseCategories, incomeCategories, glAccounts]);
+
+  const accountOptions = useMemo(() => {
+    return accountHeads.map(h => ({
+      value: h.id,
+      label: h.name,
+      group: h.group
+    }));
+  }, [accountHeads]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -203,7 +212,67 @@ export default function JournalVoucherPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="rounded-[2.5rem] max-w-lg">
           <DialogHeader><DialogTitle className="text-2xl font-headline flex items-center gap-2"><BookText className="w-6 h-6 text-accent" />{editingId ? 'Edit JV Entry' : 'New Journal Entry'}</DialogTitle></DialogHeader>
-          <div className="py-4 space-y-5"><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Posting Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" /></div><div className="space-y-2"><Label>Amount</Label><Input type="number" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="rounded-xl h-11 font-black text-primary" /></div></div><div className="space-y-4 p-4 bg-secondary/20 rounded-2xl border border-secondary/30"><div className="space-y-2"><Label className="flex items-center gap-2 text-green-700 font-bold"><div className="w-2 h-2 rounded-full bg-green-500" />Account to Debit (+)</Label><Select value={form.debitAccountId} onValueChange={(v) => setForm({ ...form, debitAccountId: v })}><SelectTrigger className="bg-white rounded-xl h-11"><SelectValue placeholder="Select Account" /></SelectTrigger><SelectContent className="rounded-xl max-h-[250px]">{accountHeads.map(h => (<SelectItem key={h.id} value={h.id}><span className="text-[10px] text-muted-foreground mr-2 font-black">[{h.group}]</span>{h.name}</SelectItem>))}</SelectContent></Select></div><div className="flex justify-center -my-2 relative z-10"><div className="p-2 bg-white rounded-full shadow-sm border border-secondary"><ArrowRightLeft className="w-4 h-4 text-muted-foreground rotate-90" /></div></div><div className="space-y-2"><Label className="flex items-center gap-2 text-red-700 font-bold"><div className="w-2 h-2 rounded-full bg-red-500" />Account to Credit (-)</Label><Select value={form.creditAccountId} onValueChange={(v) => setForm({ ...form, creditAccountId: v })}><SelectTrigger className="bg-white rounded-xl h-11"><SelectValue placeholder="Select Account" /></SelectTrigger><SelectContent className="rounded-xl max-h-[250px]">{accountHeads.map(h => (<SelectItem key={h.id} value={h.id}><span className="text-[10px] text-muted-foreground mr-2 font-black">[{h.group}]</span>{h.name}</SelectItem>))}</SelectContent></Select></div></div><div className="space-y-2"><Label>Narration / Notes</Label><Textarea placeholder="Reason for this entry..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl min-h-[80px]" /></div></div><DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button><Button onClick={handleSave} className="bg-accent hover:bg-accent/90 rounded-xl h-12 px-8 font-bold text-white shadow-lg shadow-accent/20">{editingId ? 'Post Changes' : 'Post Journal Entry'}</Button></DialogFooter>
+          <div className="py-4 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Posting Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input type="number" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="rounded-xl h-11 font-black text-primary" />
+              </div>
+            </div>
+            
+            <div className="space-y-4 p-4 bg-secondary/20 rounded-2xl border border-secondary/30">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-green-700 font-bold">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  Account to Debit (+)
+                </Label>
+                <SearchableSelector 
+                  value={form.debitAccountId} 
+                  onChange={(v) => setForm({ ...form, debitAccountId: v })} 
+                  options={accountOptions} 
+                  placeholder="Select Account" 
+                  searchPlaceholder="Search account..." 
+                  triggerClassName="bg-white h-11 text-left" 
+                />
+              </div>
+              
+              <div className="flex justify-center -my-2 relative z-10">
+                <div className="p-2 bg-white rounded-full shadow-sm border border-secondary">
+                  <ArrowRightLeft className="w-4 h-4 text-muted-foreground rotate-90" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-red-700 font-bold">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  Account to Credit (-)
+                </Label>
+                <SearchableSelector 
+                  value={form.creditAccountId} 
+                  onChange={(v) => setForm({ ...form, creditAccountId: v })} 
+                  options={accountOptions} 
+                  placeholder="Select Account" 
+                  searchPlaceholder="Search account..." 
+                  triggerClassName="bg-white h-11 text-left" 
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Narration / Notes</Label>
+              <Textarea placeholder="Reason for this entry..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl min-h-[80px]" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button>
+            <Button onClick={handleSave} className="bg-accent hover:bg-accent/90 rounded-xl h-12 px-8 font-bold text-white shadow-lg shadow-accent/20">
+              {editingId ? 'Post Changes' : 'Post Journal Entry'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

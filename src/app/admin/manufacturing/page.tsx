@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -44,6 +44,7 @@ export default function ManufacturingPage() {
   const packagesQuery = useMemoFirebase(() => collection(firestore, 'packages'), [firestore]);
   const { data: packagesData } = useCollection<BroadcastPackage>(packagesQuery);
   const broadcastPackages = packagesData || [];
+  const packageOptions = useMemo(() => broadcastPackages.map(pkg => ({ value: pkg.id, label: pkg.name })), [broadcastPackages]);
 
   const rawItemsQuery = useMemoFirebase(() => collection(firestore, 'raw_items'), [firestore]);
   const { data: rawItemsData } = useCollection<RawItem>(rawItemsQuery);
@@ -266,15 +267,13 @@ export default function ManufacturingPage() {
 
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Target Package</Label>
-                <SearchableSelect
-                  value={selectedPackageId}
-                  onChange={setSelectedPackageId}
-                  options={broadcastPackages}
-                  getOptionLabel={pkg => pkg.name}
-                  getOptionValue={pkg => pkg.id}
-                  placeholder="Select broadcasted package"
-                  searchPlaceholder="Search package..."
-                  triggerClassName="h-12 bg-secondary/20 border-none font-bold text-sm"
+                <SearchableSelector 
+                  value={selectedPackageId} 
+                  onChange={setSelectedPackageId} 
+                  options={packageOptions} 
+                  placeholder="Select broadcasted package" 
+                  searchPlaceholder="Search packages..."
+                  triggerClassName="h-12 bg-secondary/20 border-none font-bold text-left"
                 />
               </div>
 

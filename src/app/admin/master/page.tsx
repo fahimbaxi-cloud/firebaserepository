@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Supplier, RawItem, Unit, Category, RawItemConversion, ExpenseCategory, IncomeCategory, GLAccount, GLAccountGroup } from '@/lib/types';
@@ -74,6 +74,21 @@ export default function MasterModulePage() {
   // Search & Filter States
   const [rawItemSearch, setRawItemSearch] = useState('');
   const [rawItemCategoryFilter, setRawItemCategoryFilter] = useState('all');
+
+  // Selector Options (Ascending & Searchable compatible)
+  const categoryOptions = useMemo(() => categories.map(c => ({ value: c.id, label: c.name })), [categories]);
+  const categoryFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All Categories' },
+    ...categories.map(c => ({ value: c.id, label: c.name }))
+  ], [categories]);
+  const unitOptions = useMemo(() => units.map(u => ({ value: u.id, label: u.name })), [units]);
+  
+  const accountGroupOptions = useMemo(() => {
+    return ACCOUNT_GROUPS.map(g => ({
+      value: g,
+      label: g + (SYSTEM_CRITICAL_GROUPS.includes(g) ? ' (System)' : '')
+    }));
+  }, []);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -378,15 +393,13 @@ export default function MasterModulePage() {
               />
             </div>
             <div className="w-full sm:w-[220px]">
-              <SearchableSelect
-                value={rawItemCategoryFilter}
-                onChange={setRawItemCategoryFilter}
-                options={[{ id: 'all', name: 'All Categories' }, ...categories]}
-                getOptionLabel={c => c.name}
-                getOptionValue={c => c.id}
-                placeholder="All Categories"
-                searchPlaceholder="Search category..."
-                triggerClassName="h-11 bg-white border border-secondary/20 shadow-sm font-semibold text-xs"
+              <SearchableSelector 
+                value={rawItemCategoryFilter} 
+                onChange={setRawItemCategoryFilter} 
+                options={categoryFilterOptions} 
+                placeholder="All Categories" 
+                searchPlaceholder="Search categories..."
+                triggerClassName="h-11 rounded-2xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
               />
             </div>
             {(rawItemSearch || rawItemCategoryFilter !== 'all') && (
@@ -621,14 +634,12 @@ export default function MasterModulePage() {
             </div>
             <div className="space-y-2">
               <Label>Account Type (Group)</Label>
-              <SearchableSelect
-                value={glAccountForm.group}
-                onChange={(v: any) => setGLAccountForm({...glAccountForm, group: v})}
-                options={ACCOUNT_GROUPS}
-                getOptionLabel={g => SYSTEM_CRITICAL_GROUPS.includes(g) ? `${g} (System)` : g}
-                getOptionValue={g => g}
-                placeholder="Pick Group"
-                searchPlaceholder="Search group..."
+              <SearchableSelector 
+                value={glAccountForm.group || ''} 
+                onChange={(v) => setGLAccountForm({...glAccountForm, group: v as GLAccountGroup})} 
+                options={accountGroupOptions} 
+                placeholder="Select Account Group" 
+                searchPlaceholder="Search groups..."
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -692,14 +703,12 @@ export default function MasterModulePage() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <SearchableSelect
-                  value={rawItemForm.categoryId}
-                  onChange={v => setRawItemForm({...rawItemForm, categoryId: v})}
-                  options={categories}
-                  getOptionLabel={c => c.name}
-                  getOptionValue={c => c.id}
-                  placeholder="Pick Category"
-                  searchPlaceholder="Search category..."
+                <SearchableSelector 
+                  value={rawItemForm.categoryId || ''} 
+                  onChange={v => setRawItemForm({...rawItemForm, categoryId: v})} 
+                  options={categoryOptions} 
+                  placeholder="Pick Category" 
+                  searchPlaceholder="Search categories..."
                 />
               </div>
             </div>
@@ -727,14 +736,12 @@ export default function MasterModulePage() {
 
             <div className="space-y-2">
               <Label>Basic Unit</Label>
-              <SearchableSelect
-                value={rawItemForm.baseUnitId}
-                onChange={v => setRawItemForm({...rawItemForm, baseUnitId: v})}
-                options={units}
-                getOptionLabel={u => u.name}
-                getOptionValue={u => u.id}
-                placeholder="Select Basic Unit"
-                searchPlaceholder="Search unit..."
+              <SearchableSelector 
+                value={rawItemForm.baseUnitId || ''} 
+                onChange={v => setRawItemForm({...rawItemForm, baseUnitId: v})} 
+                options={unitOptions} 
+                placeholder="Select Basic Unit" 
+                searchPlaceholder="Search units..."
               />
             </div>
 
@@ -764,15 +771,13 @@ export default function MasterModulePage() {
                     <div key={idx} className="flex items-center gap-3 bg-secondary/20 p-3 rounded-xl border border-secondary/30">
                       <span className="text-xs font-bold min-w-[30px]">1 {getUnitName(rawItemForm.baseUnitId)} =</span>
                       <Input type="number" className="w-20 bg-white" placeholder="Factor" value={conv.factor || ''} onChange={e => handleConversionChange(idx, 'factor', Number(e.target.value))} />
-                      <SearchableSelect
-                        value={conv.unitId}
-                        onChange={v => handleConversionChange(idx, 'unitId', v)}
-                        options={units.filter(u => u.id !== rawItemForm.baseUnitId)}
-                        getOptionLabel={u => u.name}
-                        getOptionValue={u => u.id}
-                        placeholder="Unit"
-                        searchPlaceholder="Search unit..."
-                        triggerClassName="flex-1 h-10 border-none bg-white font-normal"
+                      <SearchableSelector 
+                        value={conv.unitId || ''} 
+                        onChange={v => handleConversionChange(idx, 'unitId', v)} 
+                        options={units.filter(u => u.id !== rawItemForm.baseUnitId).map(u => ({ value: u.id, label: u.name }))} 
+                        placeholder="Unit" 
+                        searchPlaceholder="Search unit..." 
+                        triggerClassName="flex-1 bg-white text-left h-10 rounded-xl"
                       />
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveConversionRow(idx)}><MinusCircle className="w-4 h-4 text-muted-foreground" /></Button>
                     </div>

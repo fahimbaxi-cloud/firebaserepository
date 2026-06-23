@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelector } from '@/components/ui/searchable-selector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
@@ -74,6 +74,25 @@ export default function MenuManagement() {
   const unitsQuery = useMemoFirebase(() => collection(firestore, 'units'), [firestore]);
   const { data: unitsData } = useCollection<Unit>(unitsQuery);
   const units = unitsData || [];
+
+  const unitOptions = useMemo(() => units.map(u => ({ value: u.id, label: u.name })), [units]);
+  
+  const dietaryTypeOptions = useMemo(() => [
+    { value: 'Veg', label: 'Veg' },
+    { value: 'Non-Veg', label: 'Non-Veg' }
+  ], []);
+
+  const dietaryFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All Diets' },
+    { value: 'Veg', label: 'Veg Only' },
+    { value: 'Non-Veg', label: 'Non-Veg Only' }
+  ], []);
+
+  const visibilityFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All Visibility' },
+    { value: 'visible', label: 'Visible Only' },
+    { value: 'hidden', label: 'Hidden Only' }
+  ], []);
 
   const packagesQuery = useMemoFirebase(() => collection(firestore, 'packages'), [firestore]);
   const { data: allPackages } = useCollection<BroadcastPackage>(packagesQuery);
@@ -257,35 +276,25 @@ export default function MenuManagement() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="w-full sm:w-[160px]">
-            <Select 
+            <SearchableSelector 
               value={typeFilter} 
-              onValueChange={(val: any) => setTypeFilter(val)}
-            >
-              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
-                <SelectValue placeholder="Dietary Type" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Diets</SelectItem>
-                <SelectItem value="Veg">Veg Only</SelectItem>
-                <SelectItem value="Non-Veg">Non-Veg Only</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={setTypeFilter} 
+              options={dietaryFilterOptions} 
+              placeholder="Dietary Type" 
+              searchPlaceholder="Search diets..." 
+              triggerClassName="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
+            />
           </div>
           
           <div className="w-full sm:w-[160px]">
-            <Select 
+            <SearchableSelector 
               value={showFilter} 
-              onValueChange={(val: any) => setShowFilter(val)}
-            >
-              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
-                <SelectValue placeholder="Visibility" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Visibility</SelectItem>
-                <SelectItem value="visible">Visible Only</SelectItem>
-                <SelectItem value="hidden">Hidden Only</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={setShowFilter} 
+              options={visibilityFilterOptions} 
+              placeholder="Visibility" 
+              searchPlaceholder="Search visibility..." 
+              triggerClassName="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
+            />
           </div>
 
           {(searchQuery || typeFilter !== 'all' || showFilter !== 'all') && (
@@ -386,10 +395,14 @@ export default function MenuManagement() {
               <div className="space-y-2"><Label>Item Name</Label><Input value={formItem.name} onChange={e => setFormItem({...formItem, name: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Base Price</Label><Input type="number" value={formItem.price} onChange={e => setFormItem({...formItem, price: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Dietary Type</Label>
-                <Select value={formItem.type} onValueChange={(v: any) => setFormItem({...formItem, type: v})}>
-                  <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="Veg">Veg</SelectItem><SelectItem value="Non-Veg">Non-Veg</SelectItem></SelectContent>
-                </Select>
+                <SearchableSelector 
+                  value={formItem.type} 
+                  onChange={(v) => setFormItem({...formItem, type: v as any})} 
+                  options={dietaryTypeOptions} 
+                  placeholder="Dietary Type" 
+                  searchPlaceholder="Search type..." 
+                  triggerClassName="rounded-xl h-11 text-left bg-white"
+                />
               </div>
               <div className="flex items-center gap-2 pt-8 pl-1">
                 <Checkbox 
@@ -441,15 +454,13 @@ export default function MenuManagement() {
                       </div>
                       <div className="col-span-3 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Unit</Label>
-                        <SearchableSelect
-                          value={ing.unitId}
-                          onChange={v => handleIngredientChange(idx, 'unitId', v)}
-                          options={units}
-                          getOptionLabel={u => u.name}
-                          getOptionValue={u => u.id}
-                          placeholder="Unit"
-                          searchPlaceholder="Search unit..."
-                          triggerClassName="h-10 border-none bg-white font-normal shadow-none"
+                        <SearchableSelector 
+                          value={ing.unitId || ''} 
+                          onChange={v => handleIngredientChange(idx, 'unitId', v)} 
+                          options={unitOptions} 
+                          placeholder="Unit" 
+                          searchPlaceholder="Search unit..." 
+                          triggerClassName="h-10 rounded-xl bg-white border-none text-xs text-left"
                         />
                       </div>
                       <div className="col-span-1 flex items-center justify-center h-10">
