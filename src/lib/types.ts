@@ -93,6 +93,7 @@ export interface Order {
   assignedTo?: string; // Delivery boy ID
   referenceDate?: string; // Date when the order was given (Booking Date)
   createdAt: Date;
+  dailyStatuses?: Record<string, OrderStatus>;
 }
 
 export interface User {

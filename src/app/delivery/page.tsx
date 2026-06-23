@@ -70,6 +70,14 @@ const ColumnFilter = ({ placeholder, value, onChange }: { placeholder: string, v
   </div>
 );
 
+const getOrderDateStatus = (order: Order, date: Date) => {
+  if (order.type === 'Subscription') {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return order.dailyStatuses?.[dateKey] || 'Pending';
+  }
+  return order.status;
+};
+
 export default function DeliveryDashboard() {
   const router = useRouter();
   const firestore = useFirestore();
@@ -165,7 +173,7 @@ export default function DeliveryDashboard() {
         ? `${o.packageName || 'Subscription'} (Day ${(selectedDate || new Date()).getDate()})` 
         : (o.packageName || 'Custom Meal'),
       o.packageQuantity || 1,
-      o.status
+      getOrderDateStatus(o, selectedDate || new Date())
     ]);
     downloadPDF('Daily Delivery Manifest', head, body, `daily_tasks_${currentUser?.bacchabiteId}`);
   };
@@ -295,7 +303,7 @@ export default function DeliveryDashboard() {
       const orderText = `${o.id} ${o.slot} ${o.deliveryTime}`.toLowerCase();
       const customerText = `${o.customerName} ${o.address} ${o.mobile}`.toLowerCase();
       const packageText = (o.packageName || '').toLowerCase();
-      const statusText = o.status.toLowerCase();
+      const statusText = getOrderDateStatus(o, targetDate).toLowerCase();
       const qtyText = (o.packageQuantity || 1).toString();
 
       return (
@@ -359,16 +367,37 @@ export default function DeliveryDashboard() {
   }, [filteredOrders]);
 
   const updateStatus = (orderId: string, newStatus: OrderStatus) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
     const orderRef = doc(firestore, 'orders', orderId);
-    updateDocumentNonBlocking(orderRef, { status: newStatus });
-    toast({ title: "Status Updated", description: `Order #${orderId} is now ${newStatus}.` });
+    if (order.type === 'Subscription') {
+      const dateKey = format(selectedDate || new Date(), 'yyyy-MM-dd');
+      const updatedDailyStatuses = {
+        ...(order.dailyStatuses || {}),
+        [dateKey]: newStatus,
+      };
+      updateDocumentNonBlocking(orderRef, { dailyStatuses: updatedDailyStatuses });
+    } else {
+      updateDocumentNonBlocking(orderRef, { status: newStatus });
+    }
+    toast({ title: "Status Updated", description: `Order #${orderId} for ${format(selectedDate || new Date(), 'MMM dd, yyyy')} is now ${newStatus}.` });
   };
 
   const bulkUpdateStatus = (newStatus: OrderStatus) => {
     if (filteredOrders.length === 0) return;
     filteredOrders.forEach(o => {
       const orderRef = doc(firestore, 'orders', o.id);
-      updateDocumentNonBlocking(orderRef, { status: newStatus });
+      if (o.type === 'Subscription') {
+        const dateKey = format(selectedDate || new Date(), 'yyyy-MM-dd');
+        const updatedDailyStatuses = {
+          ...(o.dailyStatuses || {}),
+          [dateKey]: newStatus,
+        };
+        updateDocumentNonBlocking(orderRef, { dailyStatuses: updatedDailyStatuses });
+      } else {
+        updateDocumentNonBlocking(orderRef, { status: newStatus });
+      }
     });
     toast({ title: "Bulk Update Applied", description: `All ${filteredOrders.length} filtered orders marked as ${newStatus}.` });
   };
@@ -617,16 +646,23 @@ export default function DeliveryDashboard() {
                           <span className="text-[8px] font-black uppercase text-blue-600/60 tracking-tighter">Sets</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={order.status === 'Cancelled'} onClick={() => updateStatus(order.id, 'Cancelled')} activeColor="bg-red-500 border-red-500" /></TableCell>
-                      <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={order.status === 'Assigned'} onClick={() => updateStatus(order.id, 'Assigned')} activeColor="bg-blue-500 border-blue-500" /></TableCell>
-                      <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={order.status === 'Picked Up'} onClick={() => updateStatus(order.id, 'Picked Up')} activeColor="bg-orange-500 border-orange-500" /></TableCell>
-                      <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={order.status === 'Out for Delivery'} onClick={() => updateStatus(order.id, 'Out for Delivery')} activeColor="bg-amber-500 border-amber-500" /></TableCell>
-                      <TableCell className="text-center align-top py-8 pr-8">
-                        <div className="print:hidden">
-                          <StatusRadio active={order.status === 'Delivered'} onClick={() => updateStatus(order.id, 'Delivered')} activeColor="bg-green-500 border-green-500" />
-                        </div>
-                        <div className="hidden print:block text-[10px] font-bold uppercase">{order.status}</div>
-                      </TableCell>
+                      {(() => {
+                        const currentStatus = getOrderDateStatus(order, selectedDate || new Date());
+                        return (
+                          <>
+                            <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={currentStatus === 'Cancelled'} onClick={() => updateStatus(order.id, 'Cancelled')} activeColor="bg-red-500 border-red-500" /></TableCell>
+                            <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={currentStatus === 'Assigned'} onClick={() => updateStatus(order.id, 'Assigned')} activeColor="bg-blue-500 border-blue-500" /></TableCell>
+                            <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={currentStatus === 'Picked Up'} onClick={() => updateStatus(order.id, 'Picked Up')} activeColor="bg-orange-500 border-orange-500" /></TableCell>
+                            <TableCell className="text-center align-top py-8 print:hidden"><StatusRadio active={currentStatus === 'Out for Delivery'} onClick={() => updateStatus(order.id, 'Out for Delivery')} activeColor="bg-amber-500 border-amber-500" /></TableCell>
+                            <TableCell className="text-center align-top py-8 pr-8">
+                              <div className="print:hidden">
+                                <StatusRadio active={currentStatus === 'Delivered'} onClick={() => updateStatus(order.id, 'Delivered')} activeColor="bg-green-500 border-green-500" />
+                              </div>
+                              <div className="hidden print:block text-[10px] font-bold uppercase">{currentStatus}</div>
+                            </TableCell>
+                          </>
+                        );
+                      })()}
                     </TableRow>
                   ))
                 ) : (
@@ -652,7 +688,9 @@ export default function DeliveryDashboard() {
                       <Badge variant="outline" className="bg-white/10 text-white border-white/20 uppercase font-black text-[10px] tracking-widest mb-2">Order Summary</Badge>
                       <DialogTitle className="text-3xl font-headline font-bold leading-none">#{selectedOrderForDetails.id}</DialogTitle>
                     </div>
-                    <Badge className="bg-white text-blue-600 border-none font-black text-[10px] rounded-lg">{selectedOrderForDetails.status}</Badge>
+                    <Badge className="bg-white text-blue-600 border-none font-black text-[10px] rounded-lg">
+                      {getOrderDateStatus(selectedOrderForDetails, selectedDate || new Date())}
+                    </Badge>
                   </div>
                 </DialogHeader>
                 <div className="p-8 bg-white space-y-6">

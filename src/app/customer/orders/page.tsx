@@ -311,8 +311,33 @@ export default function CustomerOrdersPage() {
     </div>
   );
 
+  const getSubscriptionDayDate = (pkg: any, idx: number): string | null => {
+    if (!pkg || !pkg.dateContext) return null;
+    try {
+      const parsedDate = parse(pkg.dateContext, 'MMMM yyyy', new Date());
+      if (isValid(parsedDate)) {
+        parsedDate.setDate(idx + 1);
+        return format(parsedDate, 'yyyy-MM-dd');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  };
+
+  const getSubscriptionAssignedDates = (pkg: any): string[] => {
+    if (!pkg || !pkg.monthlyAssignments) return [];
+    return Object.keys(pkg.monthlyAssignments).sort();
+  };
+
+  const getDailyStatus = (order: Order, dateKey: string | null) => {
+    if (!dateKey) return order.status;
+    return order.dailyStatuses?.[dateKey] || 'Pending';
+  };
+
   const BreakdownSection = ({ order }: { order: Order }) => {
     const items = getPackageItems(order);
+    const pkg = allPackages.find(p => p.name === order.packageName);
     return (
       <div className="bg-primary/5 p-5 rounded-[2rem] border border-primary/10 mt-2 mb-4">
         <div className="flex items-center gap-2 mb-3">
@@ -321,31 +346,53 @@ export default function CustomerOrdersPage() {
         </div>
         {order.type === 'Subscription' ? (
           <div className="space-y-2.5">
-            {items.map((item: any, idx: number) => {
-              const dayKey = `${order.id}-day-${idx}`;
-              const isOpen = !!openDays[dayKey];
-              return (
-                <Collapsible key={dayKey} open={isOpen} onValueChange={() => toggleDay(dayKey)} className="w-full">
-                  <div className={cn("flex items-center justify-between p-2.5 rounded-2xl border transition-all", isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30")}>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary text-white font-black text-[9px] w-7 h-7 flex items-center justify-center rounded-lg shadow-sm">D{idx + 1}</div>
-                      <div>
-                        <p className="text-xs font-black text-accent">Day {idx + 1} Package</p>
-                        <p className="text-[9px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
+            {(() => {
+              const assignedDates = getSubscriptionAssignedDates(pkg);
+              const itemsToRender = assignedDates.length > 0 
+                ? assignedDates.map(dateStr => {
+                    const itemIds = pkg?.monthlyAssignments?.[dateStr] || [];
+                    const firstId = itemIds[0];
+                    return { item: menu.find(m => m.id === firstId), dateKey: dateStr, label: format(parseISO(dateStr), 'MMM dd, yyyy') };
+                  })
+                : items.map((item: any, idx: number) => {
+                    const dateKey = getSubscriptionDayDate(pkg, idx);
+                    const formattedLabel = dateKey ? format(parseISO(dateKey), 'MMM dd, yyyy') : `Day {idx + 1}`;
+                    return { item, dateKey, label: formattedLabel };
+                  });
+
+              return itemsToRender.filter(x => x.item).map(({ item, dateKey, label }, idx) => {
+                const dayKey = `${order.id}-day-${idx}`;
+                const isOpen = !!openDays[dayKey];
+                const dayStatus = getDailyStatus(order, dateKey);
+
+                return (
+                  <Collapsible key={dayKey} open={isOpen} onValueChange={() => toggleDay(dayKey)} className="w-full">
+                    <div className={cn("flex items-center justify-between p-2.5 rounded-2xl border transition-all", isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30")}>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary text-white font-black text-[9px] w-7 h-7 flex items-center justify-center rounded-lg shadow-sm">D{idx + 1}</div>
+                        <div>
+                          <p className="text-xs font-black text-accent">{label}</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={cn("rounded-lg border-none px-2 py-0.5 font-bold text-[8px] uppercase shrink-0 leading-none", getStatusColor(dayStatus))}>
+                          {dayStatus}
+                        </Badge>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 rounded-full p-0 hover:bg-primary/10 hover:text-primary">
+                            {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </Button>
+                        </CollapsibleTrigger>
                       </div>
                     </div>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 rounded-full p-0 hover:bg-primary/10 hover:text-primary">
-                        {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
-                    <div className="mt-1 px-1"><PackageItemRow item={item} /></div>
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
+                    <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
+                      <div className="mt-1 px-1"><PackageItemRow item={item} /></div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              });
+            })()}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-2.5">{items.map((item: any, idx: number) => (<PackageItemRow key={idx} item={item} />))}</div>
