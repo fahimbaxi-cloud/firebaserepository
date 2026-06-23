@@ -70,6 +70,11 @@ export default function EditOrderPage() {
   const [orderStatus, setOrderStatus] = useState<OrderStatus>('Pending');
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Scheme Date States
+  const [activeTab, setActiveTab] = useState('daily');
+  const [refMonth, setRefMonth] = useState<string>(format(new Date(), "MMMM"));
+  const [refYear, setRefYear] = useState<string>(format(new Date(), "yyyy"));
+
   useEffect(() => {
     if (order && allUsers.length > 0 && broadcastPackages.length > 0 && !isInitialized) {
       const user = allUsers.find(u => u.id === order.customerId);
@@ -91,6 +96,17 @@ export default function EditOrderPage() {
       setTimePeriod(timeParts[1] || 'AM');
       setOrderStatus(order.status);
       
+      if (order.type === 'Subscription') {
+        setActiveTab('scheme');
+        const d = isValid(date) ? date : new Date();
+        setRefMonth(format(d, "MMMM"));
+        setRefYear(format(d, "yyyy"));
+      } else {
+        setActiveTab('daily');
+        const d = isValid(date) ? date : new Date();
+        setSelectedDate(d);
+      }
+
       setIsInitialized(true);
     }
   }, [order, allUsers, broadcastPackages, isInitialized]);
@@ -161,9 +177,8 @@ export default function EditOrderPage() {
   }, [selectedDate]);
 
   const targetMonthStr = useMemo(() => {
-    if (!selectedDate) return '';
-    return format(selectedDate, "MMMM yyyy");
-  }, [selectedDate]);
+    return `${refMonth} ${refYear}`;
+  }, [refMonth, refYear]);
 
   const cartPackages = useMemo(() => {
     return Object.entries(selectedPackages)
@@ -213,6 +228,20 @@ export default function EditOrderPage() {
       };
     });
 
+    // Calculate referenceDate and targetDeliveryDate depending on daily vs subscription (scheme)
+    const calculatedRefDate = pkg!.type === 'daily'
+      ? (selectedDate || new Date()).toISOString()
+      : (() => {
+          const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+          const mIdx = months.indexOf(refMonth);
+          const d = new Date(parseInt(refYear), mIdx >= 0 ? mIdx : 0, 1, 12, 0, 0);
+          return d.toISOString();
+        })();
+
+    const calculatedTargetDeliveryDate = pkg!.type === 'daily'
+      ? targetDailyDateStr
+      : `${refMonth} ${refYear}`;
+
     const updateData: any = {
       customerId: selectedUser.id,
       customerName: `${selectedUser.firstName} ${selectedUser.lastName}`,
@@ -226,7 +255,8 @@ export default function EditOrderPage() {
       slot: timeSlot,
       deliveryTime: `${timeValue} ${timePeriod}`,
       status: orderStatus,
-      referenceDate: (selectedDate || new Date()).toISOString(),
+      referenceDate: calculatedRefDate,
+      targetDeliveryDate: calculatedTargetDeliveryDate,
       updatedAt: new Date().toISOString()
     };
 
@@ -323,35 +353,8 @@ export default function EditOrderPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="space-y-3 flex-1">
-                  <Label className="text-sm font-bold text-muted-foreground uppercase">Reference Date (When Given)</Label>
-                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className="w-full h-14 justify-start text-left font-bold rounded-2xl bg-secondary/30 border-none px-6">
-                        <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
-                        {selectedDate ? format(selectedDate, "PPP") : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
-                      <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
-                        setSelectedDate(date);
-                        setIsDatePickerOpen(false);
-                      }} initialFocus className="rounded-3xl" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-3 flex-1">
-                  <Label className="text-sm font-bold text-muted-foreground uppercase">Delivery Target</Label>
-                  <div className="h-14 bg-accent/5 border-2 border-dashed border-accent/20 rounded-2xl flex items-center px-6 gap-3 font-black text-accent">
-                    <Sparkles className="w-5 h-5" />
-                    {format(addDays(selectedDate || new Date(), 1), "PPP")}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 pt-4 border-t border-secondary/30">
-                <Tabs defaultValue="daily" className="w-full">
+              <div className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                     <TabsList className="grid grid-cols-2 w-full sm:w-[320px] bg-secondary/20 p-1 rounded-2xl h-12">
                       <TabsTrigger value="daily" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Daily Package</TabsTrigger>
@@ -367,7 +370,34 @@ export default function EditOrderPage() {
                     </div>
                   ) : (
                     <>
-                      <TabsContent value="daily" className="space-y-4 outline-none">
+                      <TabsContent value="daily" className="space-y-4 outline-none animate-in fade-in duration-300">
+                        {/* Reference Date and Target Delivery Date specifically for Daily Packages */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-6 bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
+                          <div className="space-y-2 flex-1">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Reference Date (When Given)</Label>
+                            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                              <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn("w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm", !selectedDate && "text-muted-foreground")}>
+                                  <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
+                                  setSelectedDate(date);
+                                  setIsDatePickerOpen(false);
+                                }} initialFocus className="rounded-3xl" />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="space-y-2 flex-1">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Target Delivery Date</Label>
+                            <div className="h-12 bg-green-50/50 border border-green-200 rounded-xl flex items-center px-4 gap-2 text-green-700 font-bold shadow-sm">
+                              <Sparkles className="w-4 h-4 text-green-500" />
+                              <span>{targetDailyDateStr}</span>
+                            </div>
+                          </div>
+                        </div>
                         {sortedDailyPackages.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {sortedDailyPackages.map((pkg) => {
@@ -435,7 +465,35 @@ export default function EditOrderPage() {
                         )}
                       </TabsContent>
 
-                      <TabsContent value="scheme" className="space-y-4 outline-none">
+                      <TabsContent value="scheme" className="space-y-4 outline-none animate-in fade-in duration-300">
+                        {/* Month and Year Selection for Schemes */}
+                        <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
+                          <div className="space-y-2 max-w-md">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Reference Month & Year</Label>
+                            <div className="flex gap-2">
+                              <Select value={refMonth} onValueChange={setRefMonth}>
+                                <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-white shadow-sm">
+                                  <SelectValue placeholder="Month" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m) => (
+                                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select value={refYear} onValueChange={setRefYear}>
+                                <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-white shadow-sm w-28">
+                                  <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  {["2025", "2026", "2027", "2028", "2029", "2030"].map((y) => (
+                                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
                         {sortedSchemePackages.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {sortedSchemePackages.map((pkg) => {
@@ -454,7 +512,7 @@ export default function EditOrderPage() {
                                 >
                                   {isTargetMatch && (
                                     <div className="absolute top-0 right-0 bg-green-500 text-white font-black text-[8px] px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                                      <Check className="w-2.5 h-2.5" /> Target Month Match
+                                      <Check className="w-2.5 h-2.5" /> Month Match
                                     </div>
                                   )}
                                   <div className="space-y-2">
