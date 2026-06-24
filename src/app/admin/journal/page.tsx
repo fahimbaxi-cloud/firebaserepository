@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelector } from '@/components/ui/searchable-selector';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Textarea } from '@/components/ui/textarea';
 import { JournalEntry, Supplier, User, ExpenseCategory, IncomeCategory, GLAccount } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -69,14 +69,6 @@ export default function JournalVoucherPage() {
 
     return heads;
   }, [suppliers, users, expenseCategories, incomeCategories, glAccounts]);
-
-  const accountOptions = useMemo(() => {
-    return accountHeads.map(h => ({
-      value: h.id,
-      label: h.name,
-      group: h.group
-    }));
-  }, [accountHeads]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -223,45 +215,41 @@ export default function JournalVoucherPage() {
                 <Input type="number" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="rounded-xl h-11 font-black text-primary" />
               </div>
             </div>
-            
             <div className="space-y-4 p-4 bg-secondary/20 rounded-2xl border border-secondary/30">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-green-700 font-bold">
                   <div className="w-2 h-2 rounded-full bg-green-500" />
                   Account to Debit (+)
                 </Label>
-                <SearchableSelector 
-                  value={form.debitAccountId} 
+                <SearchableSelect 
+                  value={form.debitAccountId || ''} 
                   onChange={(v) => setForm({ ...form, debitAccountId: v })} 
-                  options={accountOptions} 
-                  placeholder="Select Account" 
-                  searchPlaceholder="Search account..." 
-                  triggerClassName="bg-white h-11 text-left" 
+                  options={accountHeads.map(h => ({ id: h.id, name: `[${h.group}] ${h.name}` }))}
+                  placeholder="Select Account"
+                  searchPlaceholder="Search account name or group..."
+                  triggerClassName="h-11 bg-white border border-secondary/50 text-xs text-muted-foreground font-normal"
                 />
               </div>
-              
               <div className="flex justify-center -my-2 relative z-10">
                 <div className="p-2 bg-white rounded-full shadow-sm border border-secondary">
                   <ArrowRightLeft className="w-4 h-4 text-muted-foreground rotate-90" />
                 </div>
               </div>
-              
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-red-700 font-bold">
                   <div className="w-2 h-2 rounded-full bg-red-500" />
                   Account to Credit (-)
                 </Label>
-                <SearchableSelector 
-                  value={form.creditAccountId} 
+                <SearchableSelect 
+                  value={form.creditAccountId || ''} 
                   onChange={(v) => setForm({ ...form, creditAccountId: v })} 
-                  options={accountOptions} 
-                  placeholder="Select Account" 
-                  searchPlaceholder="Search account..." 
-                  triggerClassName="bg-white h-11 text-left" 
+                  options={accountHeads.map(h => ({ id: h.id, name: `[${h.group}] ${h.name}` }))}
+                  placeholder="Select Account"
+                  searchPlaceholder="Search account name or group..."
+                  triggerClassName="h-11 bg-white border border-secondary/50 text-xs text-muted-foreground font-normal"
                 />
               </div>
             </div>
-            
             <div className="space-y-2">
               <Label>Narration / Notes</Label>
               <Textarea placeholder="Reason for this entry..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl min-h-[80px]" />
@@ -269,9 +257,7 @@ export default function JournalVoucherPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button>
-            <Button onClick={handleSave} className="bg-accent hover:bg-accent/90 rounded-xl h-12 px-8 font-bold text-white shadow-lg shadow-accent/20">
-              {editingId ? 'Post Changes' : 'Post Journal Entry'}
-            </Button>
+            <Button onClick={handleSave} className="bg-accent hover:bg-accent/90 rounded-xl h-12 px-8 font-bold text-white shadow-lg shadow-accent/20">{editingId ? 'Post Changes' : 'Post Journal Entry'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelector } from '@/components/ui/searchable-selector';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Supplier, RawItem, Unit, Category, RawItemConversion, ExpenseCategory, IncomeCategory, GLAccount, GLAccountGroup } from '@/lib/types';
@@ -74,21 +74,6 @@ export default function MasterModulePage() {
   // Search & Filter States
   const [rawItemSearch, setRawItemSearch] = useState('');
   const [rawItemCategoryFilter, setRawItemCategoryFilter] = useState('all');
-
-  // Selector Options (Ascending & Searchable compatible)
-  const categoryOptions = useMemo(() => categories.map(c => ({ value: c.id, label: c.name })), [categories]);
-  const categoryFilterOptions = useMemo(() => [
-    { value: 'all', label: 'All Categories' },
-    ...categories.map(c => ({ value: c.id, label: c.name }))
-  ], [categories]);
-  const unitOptions = useMemo(() => units.map(u => ({ value: u.id, label: u.name })), [units]);
-  
-  const accountGroupOptions = useMemo(() => {
-    return ACCOUNT_GROUPS.map(g => ({
-      value: g,
-      label: g + (SYSTEM_CRITICAL_GROUPS.includes(g) ? ' (System)' : '')
-    }));
-  }, []);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -393,14 +378,17 @@ export default function MasterModulePage() {
               />
             </div>
             <div className="w-full sm:w-[220px]">
-              <SearchableSelector 
-                value={rawItemCategoryFilter} 
-                onChange={setRawItemCategoryFilter} 
-                options={categoryFilterOptions} 
-                placeholder="All Categories" 
-                searchPlaceholder="Search categories..."
-                triggerClassName="h-11 rounded-2xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
-              />
+              <Select value={rawItemCategoryFilter} onValueChange={setRawItemCategoryFilter}>
+                <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {(rawItemSearch || rawItemCategoryFilter !== 'all') && (
               <Button 
@@ -634,12 +622,13 @@ export default function MasterModulePage() {
             </div>
             <div className="space-y-2">
               <Label>Account Type (Group)</Label>
-              <SearchableSelector 
+              <SearchableSelect 
                 value={glAccountForm.group || ''} 
-                onChange={(v) => setGLAccountForm({...glAccountForm, group: v as GLAccountGroup})} 
-                options={accountGroupOptions} 
-                placeholder="Select Account Group" 
-                searchPlaceholder="Search groups..."
+                onChange={(v: any) => setGLAccountForm({...glAccountForm, group: v})} 
+                options={ACCOUNT_GROUPS.map(g => ({ id: g, name: g }))}
+                placeholder="Select Group"
+                searchPlaceholder="Search group..."
+                triggerClassName="h-11 border border-secondary/50"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -703,12 +692,13 @@ export default function MasterModulePage() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <SearchableSelector 
+                <SearchableSelect 
                   value={rawItemForm.categoryId || ''} 
                   onChange={v => setRawItemForm({...rawItemForm, categoryId: v})} 
-                  options={categoryOptions} 
-                  placeholder="Pick Category" 
-                  searchPlaceholder="Search categories..."
+                  options={categories}
+                  placeholder="Pick Category"
+                  searchPlaceholder="Search category..."
+                  triggerClassName="h-11 border border-secondary/50"
                 />
               </div>
             </div>
@@ -736,12 +726,13 @@ export default function MasterModulePage() {
 
             <div className="space-y-2">
               <Label>Basic Unit</Label>
-              <SearchableSelector 
+              <SearchableSelect 
                 value={rawItemForm.baseUnitId || ''} 
                 onChange={v => setRawItemForm({...rawItemForm, baseUnitId: v})} 
-                options={unitOptions} 
-                placeholder="Select Basic Unit" 
-                searchPlaceholder="Search units..."
+                options={units}
+                placeholder="Select Basic Unit"
+                searchPlaceholder="Search basic unit..."
+                triggerClassName="h-11 border border-secondary/50"
               />
             </div>
 
@@ -771,13 +762,13 @@ export default function MasterModulePage() {
                     <div key={idx} className="flex items-center gap-3 bg-secondary/20 p-3 rounded-xl border border-secondary/30">
                       <span className="text-xs font-bold min-w-[30px]">1 {getUnitName(rawItemForm.baseUnitId)} =</span>
                       <Input type="number" className="w-20 bg-white" placeholder="Factor" value={conv.factor || ''} onChange={e => handleConversionChange(idx, 'factor', Number(e.target.value))} />
-                      <SearchableSelector 
+                      <SearchableSelect 
                         value={conv.unitId || ''} 
                         onChange={v => handleConversionChange(idx, 'unitId', v)} 
-                        options={units.filter(u => u.id !== rawItemForm.baseUnitId).map(u => ({ value: u.id, label: u.name }))} 
-                        placeholder="Unit" 
-                        searchPlaceholder="Search unit..." 
-                        triggerClassName="flex-1 bg-white text-left h-10 rounded-xl"
+                        options={units.filter(u => u.id !== rawItemForm.baseUnitId)}
+                        placeholder="Unit"
+                        searchPlaceholder="Search unit..."
+                        triggerClassName="flex-1 bg-white border border-secondary/35 text-xs text-muted-foreground font-normal"
                       />
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveConversionRow(idx)}><MinusCircle className="w-4 h-4 text-muted-foreground" /></Button>
                     </div>

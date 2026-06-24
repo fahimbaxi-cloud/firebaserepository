@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelector } from '@/components/ui/searchable-selector';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
@@ -74,25 +74,6 @@ export default function MenuManagement() {
   const unitsQuery = useMemoFirebase(() => collection(firestore, 'units'), [firestore]);
   const { data: unitsData } = useCollection<Unit>(unitsQuery);
   const units = unitsData || [];
-
-  const unitOptions = useMemo(() => units.map(u => ({ value: u.id, label: u.name })), [units]);
-  
-  const dietaryTypeOptions = useMemo(() => [
-    { value: 'Veg', label: 'Veg' },
-    { value: 'Non-Veg', label: 'Non-Veg' }
-  ], []);
-
-  const dietaryFilterOptions = useMemo(() => [
-    { value: 'all', label: 'All Diets' },
-    { value: 'Veg', label: 'Veg Only' },
-    { value: 'Non-Veg', label: 'Non-Veg Only' }
-  ], []);
-
-  const visibilityFilterOptions = useMemo(() => [
-    { value: 'all', label: 'All Visibility' },
-    { value: 'visible', label: 'Visible Only' },
-    { value: 'hidden', label: 'Hidden Only' }
-  ], []);
 
   const packagesQuery = useMemoFirebase(() => collection(firestore, 'packages'), [firestore]);
   const { data: allPackages } = useCollection<BroadcastPackage>(packagesQuery);
@@ -276,25 +257,35 @@ export default function MenuManagement() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="w-full sm:w-[160px]">
-            <SearchableSelector 
+            <Select 
               value={typeFilter} 
-              onChange={setTypeFilter} 
-              options={dietaryFilterOptions} 
-              placeholder="Dietary Type" 
-              searchPlaceholder="Search diets..." 
-              triggerClassName="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
-            />
+              onValueChange={(val: any) => setTypeFilter(val)}
+            >
+              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                <SelectValue placeholder="Dietary Type" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Diets</SelectItem>
+                <SelectItem value="Veg">Veg Only</SelectItem>
+                <SelectItem value="Non-Veg">Non-Veg Only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="w-full sm:w-[160px]">
-            <SearchableSelector 
+            <Select 
               value={showFilter} 
-              onChange={setShowFilter} 
-              options={visibilityFilterOptions} 
-              placeholder="Visibility" 
-              searchPlaceholder="Search visibility..." 
-              triggerClassName="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs text-left"
-            />
+              onValueChange={(val: any) => setShowFilter(val)}
+            >
+              <SelectTrigger className="h-11 rounded-xl bg-white border border-secondary/20 shadow-sm font-semibold text-xs">
+                <SelectValue placeholder="Visibility" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Visibility</SelectItem>
+                <SelectItem value="visible">Visible Only</SelectItem>
+                <SelectItem value="hidden">Hidden Only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {(searchQuery || typeFilter !== 'all' || showFilter !== 'all') && (
@@ -395,14 +386,10 @@ export default function MenuManagement() {
               <div className="space-y-2"><Label>Item Name</Label><Input value={formItem.name} onChange={e => setFormItem({...formItem, name: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Base Price</Label><Input type="number" value={formItem.price} onChange={e => setFormItem({...formItem, price: e.target.value})} className="rounded-xl h-11" /></div>
               <div className="space-y-2"><Label>Dietary Type</Label>
-                <SearchableSelector 
-                  value={formItem.type} 
-                  onChange={(v) => setFormItem({...formItem, type: v as any})} 
-                  options={dietaryTypeOptions} 
-                  placeholder="Dietary Type" 
-                  searchPlaceholder="Search type..." 
-                  triggerClassName="rounded-xl h-11 text-left bg-white"
-                />
+                <Select value={formItem.type} onValueChange={(v: any) => setFormItem({...formItem, type: v})}>
+                  <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Veg">Veg</SelectItem><SelectItem value="Non-Veg">Non-Veg</SelectItem></SelectContent>
+                </Select>
               </div>
               <div className="flex items-center gap-2 pt-8 pl-1">
                 <Checkbox 
@@ -436,10 +423,13 @@ export default function MenuManagement() {
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end bg-secondary/20 p-3 rounded-2xl border border-secondary/30 group">
                       <div className="col-span-5 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Raw Item</Label>
-                        <RawItemSelector 
+                        <SearchableSelect 
                           value={ing.rawItemId} 
                           onChange={v => handleIngredientChange(idx, 'rawItemId', v)} 
-                          rawItems={rawItems}
+                          options={rawItems}
+                          placeholder="Pick item"
+                          searchPlaceholder="Search raw item..."
+                          triggerClassName="h-10 bg-white border-none text-xs font-normal text-muted-foreground"
                         />
                       </div>
                       <div className="col-span-3 space-y-1">
@@ -454,13 +444,13 @@ export default function MenuManagement() {
                       </div>
                       <div className="col-span-3 space-y-1">
                         <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Unit</Label>
-                        <SearchableSelector 
-                          value={ing.unitId || ''} 
+                        <SearchableSelect 
+                          value={ing.unitId} 
                           onChange={v => handleIngredientChange(idx, 'unitId', v)} 
-                          options={unitOptions} 
-                          placeholder="Unit" 
-                          searchPlaceholder="Search unit..." 
-                          triggerClassName="h-10 rounded-xl bg-white border-none text-xs text-left"
+                          options={units}
+                          placeholder="Unit"
+                          searchPlaceholder="Search unit..."
+                          triggerClassName="h-10 bg-white border-none text-xs font-normal text-muted-foreground"
                         />
                       </div>
                       <div className="col-span-1 flex items-center justify-center h-10">
@@ -499,91 +489,4 @@ export default function MenuManagement() {
   );
 }
 
-interface RawItemSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
-  rawItems: RawItem[];
-}
 
-function RawItemSelector({ value, onChange, rawItems }: RawItemSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  const selectedItem = rawItems.find(ri => ri.id === value);
-  
-  const filtered = useMemo(() => {
-    return rawItems.filter(ri => 
-      (ri.name || '').toLowerCase().includes(search.toLowerCase())
-    );
-  }, [rawItems, search]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  return (
-    <div className="relative w-full" ref={containerRef}>
-      <Button 
-        type="button"
-        variant="outline" 
-        onClick={() => setOpen(!open)}
-        className="w-full h-10 rounded-xl bg-white border-none text-xs justify-between font-normal text-foreground px-3 flex items-center"
-      >
-        <span className="truncate">
-          {selectedItem ? selectedItem.name : "Pick item"}
-        </span>
-        <span className="text-muted-foreground ml-2 text-[10px]">▼</span>
-      </Button>
-      {open && (
-        <div className="absolute z-50 left-0 right-0 mt-1 p-2 rounded-2xl shadow-xl border border-secondary/30 bg-white min-w-[200px]">
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input 
-              placeholder="Search raw item..." 
-              value={search} 
-              autoFocus
-              onChange={(e) => setSearch(e.target.value)} 
-              className="pl-8 pr-3 h-8 text-xs rounded-lg border border-secondary/30 bg-secondary/5 focus-visible:ring-primary/20"
-            />
-          </div>
-          <ScrollArea className="h-[200px] pr-1">
-            {filtered.length > 0 ? (
-              <div className="space-y-1">
-                {filtered.map(ri => (
-                  <button
-                    key={ri.id}
-                    type="button"
-                    onClick={() => {
-                      onChange(ri.id);
-                      setOpen(false);
-                      setSearch("");
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors truncate block ${
-                      ri.id === value 
-                        ? "bg-primary text-white" 
-                        : "hover:bg-primary/10 text-foreground"
-                    }`}
-                  >
-                    {ri.name}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-[10px] text-muted-foreground py-4 font-bold uppercase">No items found</p>
-            )}
-          </ScrollArea>
-        </div>
-      )}
-    </div>
-  );
-}

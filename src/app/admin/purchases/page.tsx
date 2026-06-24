@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelector } from '@/components/ui/searchable-selector';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Purchase, PurchaseItem, Supplier, RawItem, Unit } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, ShoppingCart, Calendar, Trash2, PlusCircle, ReceiptText, Edit, Search, FilterX, CalendarDays, FileText, ArrowUpDown, ChevronUp, ChevronDown, Loader2, Printer, FileDown } from 'lucide-react';
@@ -48,10 +48,6 @@ export default function PurchaseManagementPage() {
   const [endDate, setEndDate] = useState('');
   const [billNoFilter, setBillNoFilter] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'date', direction: 'desc' });
-
-  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.name })), [suppliers]);
-  const rawItemOptions = useMemo(() => rawItems.map(ri => ({ value: ri.id, label: ri.name })), [rawItems]);
-  const unitOptions = useMemo(() => units.map(u => ({ value: u.id, label: u.name })), [units]);
 
   const [form, setForm] = useState<Partial<Purchase>>({
     supplierId: '',
@@ -248,7 +244,81 @@ export default function PurchaseManagementPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="rounded-[2.5rem] max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-8 pb-0"><DialogTitle className="text-2xl font-headline flex items-center gap-2"><ShoppingCart className="w-6 h-6 text-primary" />{editingId ? 'Edit Purchase' : 'Record Purchase'}</DialogTitle></DialogHeader>
-          <div className="flex-1 overflow-y-auto px-8 py-4"><div className="grid grid-cols-2 gap-4 py-4"><div className="space-y-2 col-span-2"><Label className="font-bold">Select Supplier</Label><SearchableSelector value={form.supplierId || ''} onChange={v => setForm({...form, supplierId: v})} options={supplierOptions} placeholder="Pick from Master" searchPlaceholder="Search suppliers..." /></div><div className="space-y-2"><Label>Purchase Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" /></div><div className="space-y-2"><Label>Status</Label><div className="flex gap-2"><Button type="button" variant={form.status === 'Pending' ? 'default' : 'outline'} onClick={() => setForm({ ...form, status: 'Pending' })} className="flex-1 rounded-xl h-11 font-bold">Pending</Button><Button type="button" variant={form.status === 'Received' ? 'default' : 'outline'} onClick={() => setForm({ ...form, status: 'Received' })} className="flex-1 rounded-xl h-11 font-bold">Received</Button></div></div><div className="col-span-2 pt-4"><div className="flex items-center justify-between mb-2"><Label className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground">Purchase Items</Label><Button variant="ghost" size="sm" onClick={handleAddItem} className="text-primary text-xs font-bold h-7 px-2"><PlusCircle className="w-3.5 h-3.5 mr-1" />Add Item</Button></div><div className="space-y-3">{form.items?.map((item, idx) => (<div key={idx} className="grid grid-cols-12 gap-2 items-end bg-secondary/20 p-3 rounded-2xl border border-secondary/30 group"><div className="col-span-4 space-y-1"><Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Master Item</Label><SearchableSelector value={item.rawItemId} onChange={v => handleItemChange(idx, 'rawItemId', v)} options={rawItemOptions} placeholder="Pick item" searchPlaceholder="Search master item..." triggerClassName="h-10 border-none bg-white text-xs text-left" /></div><div className="col-span-2 space-y-1"><Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Unit</Label><SearchableSelector value={item.unitId} onChange={v => handleItemChange(idx, 'unitId', v)} options={unitOptions} placeholder="Unit" searchPlaceholder="Search units..." triggerClassName="h-10 border-none bg-white text-xs text-left" /></div><div className="col-span-1 space-y-1"><Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Qty</Label><Input type="number" value={item.quantity} onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)} className="h-10 rounded-xl bg-white border-none text-xs" /></div><div className="col-span-2 space-y-1"><Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Rate</Label><Input type="number" value={item.rate} onChange={(e) => handleItemChange(idx, 'rate', e.target.value)} className="h-10 rounded-xl bg-white border-none text-xs" /></div><div className="col-span-2 space-y-1"><Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Amt</Label><div className="h-10 flex items-center justify-center font-bold text-xs text-primary bg-white rounded-xl">{item.amount}</div></div><div className="col-span-1 flex items-center justify-center h-10"><Button variant="ghost" size="icon" onClick={() => handleRemoveItem(idx)} disabled={form.items?.length === 1} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button></div></div>))}</div></div></div></div><DialogFooter className="p-8 pt-4 bg-secondary/5 border-t border-secondary/20"><div className="flex-1 flex flex-col justify-center"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Estimated Total</span><span className="text-2xl font-black text-accent">{totalAmount}</span></div><div className="flex gap-2"><Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button><Button onClick={handleSave} className="bg-primary hover:bg-primary/90 rounded-xl h-12 px-8 font-bold">{editingId ? 'Update Purchase' : 'Save Purchase'}</Button></div></DialogFooter>
+          <div className="flex-1 overflow-y-auto px-8 py-4">
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2 col-span-2">
+                <Label className="font-bold">Select Supplier</Label>
+                <SearchableSelect 
+                  value={form.supplierId || ''} 
+                  onChange={v => setForm({...form, supplierId: v})} 
+                  options={suppliers}
+                  placeholder="Pick from Master"
+                  searchPlaceholder="Search supplier..."
+                  triggerClassName="h-11 border border-secondary/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Purchase Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded-xl h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <div className="flex gap-2">
+                  <Button type="button" variant={form.status === 'Pending' ? 'default' : 'outline'} onClick={() => setForm({ ...form, status: 'Pending' })} className="flex-1 rounded-xl h-11 font-bold">Pending</Button>
+                  <Button type="button" variant={form.status === 'Received' ? 'default' : 'outline'} onClick={() => setForm({ ...form, status: 'Received' })} className="flex-1 rounded-xl h-11 font-bold">Received</Button>
+                </div>
+              </div>
+              <div className="col-span-2 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground">Purchase Items</Label>
+                  <Button variant="ghost" size="sm" onClick={handleAddItem} className="text-primary text-xs font-bold h-7 px-2"><PlusCircle className="w-3.5 h-3.5 mr-1" />Add Item</Button>
+                </div>
+                <div className="space-y-3">
+                  {form.items?.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-end bg-secondary/20 p-3 rounded-2xl border border-secondary/30 group">
+                      <div className="col-span-4 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Master Item</Label>
+                        <SearchableSelect 
+                          value={item.rawItemId || ''} 
+                          onChange={v => handleItemChange(idx, 'rawItemId', v)} 
+                          options={rawItems}
+                          placeholder="Pick item"
+                          searchPlaceholder="Search raw item..."
+                          triggerClassName="h-10 bg-white border-none text-xs text-muted-foreground font-normal"
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Unit</Label>
+                        <SearchableSelect 
+                          value={item.unitId || ''} 
+                          onChange={v => handleItemChange(idx, 'unitId', v)} 
+                          options={units}
+                          placeholder="Unit"
+                          searchPlaceholder="Search unit..."
+                          triggerClassName="h-10 bg-white border-none text-xs text-muted-foreground font-normal"
+                        />
+                      </div>
+                      <div className="col-span-1 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Qty</Label>
+                        <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)} className="h-10 rounded-xl bg-white border-none text-xs" />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Rate</Label>
+                        <Input type="number" value={item.rate} onChange={(e) => handleItemChange(idx, 'rate', e.target.value)} className="h-10 rounded-xl bg-white border-none text-xs" />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Amt</Label>
+                        <div className="h-10 flex items-center justify-center font-bold text-xs text-primary bg-white rounded-xl">{item.amount}</div>
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center h-10">
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(idx)} disabled={form.items?.length === 1} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div><DialogFooter className="p-8 pt-4 bg-secondary/5 border-t border-secondary/20"><div className="flex-1 flex flex-col justify-center"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Estimated Total</span><span className="text-2xl font-black text-accent">{totalAmount}</span></div><div className="flex gap-2"><Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12">Cancel</Button><Button onClick={handleSave} className="bg-primary hover:bg-primary/90 rounded-xl h-12 px-8 font-bold">{editingId ? 'Update Purchase' : 'Save Purchase'}</Button></div></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { format, parseISO } from 'date-fns';
 
 interface PackageGridProps {
   packages: BroadcastPackage[];
@@ -130,63 +131,87 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   {pkg.type === 'monthly' ? (
-                    pkg.items?.map((itemId, idx) => {
-                      const item = menuItems.find(m => m.id === itemId);
-                      if (item && item.show === false) return null;
-                      const dayKey = `${pkg.id}-day-${idx}`;
-                      const isOpen = !!openDays[dayKey];
-                      
-                      return (
-                        <Collapsible 
-                          key={dayKey} 
-                          open={isOpen} 
-                          onOpenChange={() => toggleDay(dayKey)}
-                          className="w-full"
-                        >
-                          <div className={cn(
-                            "flex items-center justify-between p-3 rounded-2xl border transition-all",
-                            isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30"
-                          )}>
-                            <div className="flex items-center gap-3">
-                              <div className="bg-primary text-white font-black text-[10px] w-8 h-8 flex items-center justify-center rounded-lg shadow-sm">
-                                D{idx + 1}
-                              </div>
-                              <div>
-                                <p className="text-xs font-black">Day {idx + 1} Package</p>
-                                <p className="text-[10px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
-                              </div>
-                            </div>
-                            <CollapsibleTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0 hover:bg-primary/10 hover:text-primary">
-                                {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              </Button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
-                            <div className="mx-4 p-4 bg-primary/5 rounded-b-2xl border-x border-b border-primary/10 space-y-3">
-                              <div className="flex gap-3">
-                                <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-primary/20">
-                                  <img src={item?.imageUrl} className="w-full h-full object-cover" alt="" />
+                    (() => {
+                      const itemsToRender = (() => {
+                        if (pkg.monthlyAssignments && Object.keys(pkg.monthlyAssignments).length > 0) {
+                          const sortedDates = Object.keys(pkg.monthlyAssignments).sort();
+                          return sortedDates.map((dateStr, idx) => {
+                            const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
+                            const item = menuItems.find(m => m.id === itemIds[0]);
+                            return {
+                              item,
+                              label: format(parseISO(dateStr), 'EEEE, MMM dd, yyyy'),
+                              dayNumber: idx + 1
+                            };
+                          }).filter(x => x.item && x.item.show !== false);
+                        } else {
+                          return (pkg.items || []).map((itemId, idx) => {
+                            const item = menuItems.find(m => m.id === itemId);
+                            return {
+                              item,
+                              label: `Day ${idx + 1} Package`,
+                              dayNumber: idx + 1
+                            };
+                          }).filter(x => x.item && x.item.show !== false);
+                        }
+                      })();
+
+                      return itemsToRender.map(({ item, label, dayNumber }) => {
+                        const dayKey = `${pkg.id}-day-${dayNumber}`;
+                        const isOpen = !!openDays[dayKey];
+
+                        return (
+                          <Collapsible 
+                            key={dayKey} 
+                            open={isOpen} 
+                            onOpenChange={() => toggleDay(dayKey)}
+                            className="w-full"
+                          >
+                            <div className={cn(
+                              "flex items-center justify-between p-3 rounded-2xl border transition-all",
+                              isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30"
+                            )}>
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary text-white font-black text-[10px] w-8 h-8 flex items-center justify-center rounded-lg shadow-sm">
+                                  D{dayNumber}
                                 </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-xs font-black text-accent">{item?.name}</p>
-                                    <Badge variant="outline" className="text-[8px] h-4 border-primary/30 text-primary font-black uppercase">{item?.type}</Badge>
+                                <div>
+                                  <p className="text-xs font-black">{label}</p>
+                                  <p className="text-[10px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
+                                </div>
+                              </div>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0 hover:bg-primary/10 hover:text-primary">
+                                  {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </Button>
+                              </CollapsibleTrigger>
+                            </div>
+                            <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
+                              <div className="mx-4 p-4 bg-primary/5 rounded-b-2xl border-x border-b border-primary/10 space-y-3">
+                                <div className="flex gap-3">
+                                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-primary/20">
+                                    <img src={item?.imageUrl} className="w-full h-full object-cover" alt="" />
                                   </div>
-                                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed italic">
-                                    {item?.description}
-                                  </p>
+                                  <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-black text-accent">{item?.name}</p>
+                                      <Badge variant="outline" className="text-[8px] h-4 border-primary/30 text-primary font-black uppercase">{item?.type}</Badge>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed italic">
+                                      {item?.description}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 pt-2 border-t border-primary/10">
+                                  <UtensilsCrossed className="w-3 h-3 text-primary/60" />
+                                  <span className="text-[9px] font-black uppercase text-primary/60 tracking-wider">Nutri-Balanced Meal Set</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 pt-2 border-t border-primary/10">
-                                <UtensilsCrossed className="w-3 h-3 text-primary/60" />
-                                <span className="text-[9px] font-black uppercase text-primary/60 tracking-wider">Nutri-Balanced Meal Set</span>
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      );
-                    })
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      });
+                    })()
                   ) : (
                     pkg.items?.map(itemId => {
                       const item = menuItems.find(m => m.id === itemId);
