@@ -327,7 +327,12 @@ export default function CustomerOrdersPage() {
 
   const getSubscriptionAssignedDates = (pkg: any): string[] => {
     if (!pkg || !pkg.monthlyAssignments) return [];
-    return Object.keys(pkg.monthlyAssignments).sort();
+    return Object.keys(pkg.monthlyAssignments)
+      .filter(dateStr => {
+        const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
+        return itemIds.length > 0;
+      })
+      .sort();
   };
 
   const getDailyStatus = (order: Order, dateKey: string | null) => {
@@ -352,15 +357,20 @@ export default function CustomerOrdersPage() {
                 ? assignedDates.map(dateStr => {
                     const itemIds = pkg?.monthlyAssignments?.[dateStr] || [];
                     const firstId = itemIds[0];
-                    return { item: menu.find(m => m.id === firstId), dateKey: dateStr, label: format(parseISO(dateStr), 'MMM dd, yyyy') };
+                    return { 
+                      item: menu.find(m => m.id === firstId), 
+                      dateKey: dateStr, 
+                      label: format(parseISO(dateStr), 'MMM dd, yyyy'),
+                      dayNumber: parseISO(dateStr).getDate()
+                    };
                   })
                 : items.map((item: any, idx: number) => {
                     const dateKey = getSubscriptionDayDate(pkg, idx);
-                    const formattedLabel = dateKey ? format(parseISO(dateKey), 'MMM dd, yyyy') : `Day {idx + 1}`;
-                    return { item, dateKey, label: formattedLabel };
+                    const formattedLabel = dateKey ? format(parseISO(dateKey), 'MMM dd, yyyy') : `Day ${idx + 1}`;
+                    return { item, dateKey, label: formattedLabel, dayNumber: idx + 1 };
                   });
 
-              return itemsToRender.filter(x => x.item).map(({ item, dateKey, label }, idx) => {
+              return itemsToRender.filter(x => x.item).map(({ item, dateKey, label, dayNumber }, idx) => {
                 const dayKey = `${order.id}-day-${idx}`;
                 const isOpen = !!openDays[dayKey];
                 const dayStatus = getDailyStatus(order, dateKey);
@@ -369,7 +379,7 @@ export default function CustomerOrdersPage() {
                   <Collapsible key={dayKey} open={isOpen} onValueChange={() => toggleDay(dayKey)} className="w-full">
                     <div className={cn("flex items-center justify-between p-2.5 rounded-2xl border transition-all", isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30")}>
                       <div className="flex items-center gap-3">
-                        <div className="bg-primary text-white font-black text-[9px] w-7 h-7 flex items-center justify-center rounded-lg shadow-sm">D{idx + 1}</div>
+                        <div className="bg-primary text-white font-black text-[9px] w-7 h-7 flex items-center justify-center rounded-lg shadow-sm">D{dayNumber}</div>
                         <div>
                           <p className="text-xs font-black text-accent">{label}</p>
                           <p className="text-[9px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>

@@ -134,14 +134,19 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                     (() => {
                       const itemsToRender = (() => {
                         if (pkg.monthlyAssignments && Object.keys(pkg.monthlyAssignments).length > 0) {
-                          const sortedDates = Object.keys(pkg.monthlyAssignments).sort();
+                          const sortedDates = Object.keys(pkg.monthlyAssignments)
+                            .filter(dateStr => {
+                              const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
+                              return itemIds.length > 0;
+                            })
+                            .sort();
                           return sortedDates.map((dateStr, idx) => {
                             const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
                             const item = menuItems.find(m => m.id === itemIds[0]);
                             return {
                               item,
                               label: format(parseISO(dateStr), 'EEEE, MMM dd, yyyy'),
-                              dayNumber: idx + 1
+                              dayNumber: parseISO(dateStr).getDate()
                             };
                           }).filter(x => x.item && x.item.show !== false);
                         } else {
