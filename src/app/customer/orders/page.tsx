@@ -350,7 +350,7 @@ export default function CustomerOrdersPage() {
           <p className="text-[10px] font-black uppercase text-primary tracking-widest">What's Inside</p>
         </div>
         {order.type === 'Subscription' ? (
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1.5 custom-scrollbar">
             {(() => {
               const assignedDates = getSubscriptionAssignedDates(pkg);
               const itemsToRender = assignedDates.length > 0 
@@ -370,7 +370,7 @@ export default function CustomerOrdersPage() {
                     return { item, dateKey, label: formattedLabel, dayNumber: idx + 1 };
                   });
 
-              return itemsToRender.filter(x => x.item).map(({ item, dateKey, label, dayNumber }, idx) => {
+              return itemsToRender.filter(x => !x.item || x.item.show !== false).map(({ item, dateKey, label, dayNumber }, idx) => {
                 const dayKey = `${order.id}-day-${idx}`;
                 const isOpen = !!openDays[dayKey];
                 const dayStatus = getDailyStatus(order, dateKey);
@@ -397,7 +397,21 @@ export default function CustomerOrdersPage() {
                       </div>
                     </div>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
-                      <div className="mt-1 px-1"><PackageItemRow item={item} /></div>
+                      <div className="mt-1 px-1">
+                        {item ? (
+                          <PackageItemRow item={item} />
+                        ) : (
+                          <div className="flex items-center gap-3 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30">
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-secondary bg-white flex items-center justify-center">
+                              <UtensilsCrossed className="w-5 h-5 text-primary/40" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-accent truncate leading-tight">Surprise Meal</p>
+                              <p className="text-[9px] font-bold uppercase text-green-600">Veg/Non-Veg</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </CollapsibleContent>
                   </Collapsible>
                 );

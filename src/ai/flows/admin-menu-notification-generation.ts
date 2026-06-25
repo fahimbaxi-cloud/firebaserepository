@@ -1,4 +1,4 @@
-'use server';
+/*'use server';*/
 /**
  * @fileOverview A Genkit flow for generating engaging push notification messages for customers.
  *
@@ -6,7 +6,7 @@
  * - AdminMenuNotificationGenerationInput - The input type for the adminMenuNotificationGeneration function.
  * - AdminMenuNotificationGenerationOutput - The return type for the adminMenuNotificationGeneration function.
  */
-
+/*
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
@@ -69,3 +69,4 @@ const adminMenuNotificationGenerationFlow = ai.defineFlow(
     return output;
   }
 );
+*/

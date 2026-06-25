@@ -7,7 +7,7 @@
  * - AdminMenuItemDescriptionGenerationInput - The input type for the adminMenuItemDescriptionGeneration function.
  * - AdminMenuItemDescriptionGenerationOutput - The return type for the adminMenuItemDescriptionGeneration function.
  */
-
+/*
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
@@ -66,3 +66,4 @@ const adminMenuItemDescriptionGenerationFlow = ai.defineFlow(
     return output!;
   }
 );
+*/
