@@ -143,26 +143,26 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                               .sort();
                             return sortedDates.map((dateStr, idx) => {
                               const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
-                              const item = menuItems.find(m => m.id === itemIds[0]);
+                              const items = itemIds.map(id => menuItems.find(m => m.id === id)).filter(item => item && item.show !== false);
                               return {
-                                item,
+                                items,
                                 label: format(parseISO(dateStr), 'EEEE, MMM dd, yyyy'),
                                 dayNumber: parseISO(dateStr).getDate()
                               };
-                            }).filter(x => !x.item || x.item.show !== false);
+                            }).filter(x => x.items.length > 0);
                           } else {
                             return (pkg.items || []).map((itemId, idx) => {
                               const item = menuItems.find(m => m.id === itemId);
                               return {
-                                item,
+                                items: item && item.show !== false ? [item] : [],
                                 label: `Day ${idx + 1} Package`,
                                 dayNumber: idx + 1
                               };
-                            }).filter(x => !x.item || x.item.show !== false);
+                            }).filter(x => x.items.length > 0);
                           }
                         })();
 
-                        return itemsToRender.map(({ item, label, dayNumber }) => {
+                        return itemsToRender.map(({ items, label, dayNumber }) => {
                           const dayKey = `${pkg.id}-day-${dayNumber}`;
                           const isOpen = !!openDays[dayKey];
 
@@ -183,7 +183,7 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                                   </div>
                                   <div>
                                     <p className="text-xs font-black">{label}</p>
-                                    <p className="text-[10px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
+                                    <p className="text-[10px] text-muted-foreground font-bold">{items.map(i => i.name).join(', ')}</p>
                                   </div>
                                 </div>
                                 <CollapsibleTrigger asChild>
@@ -194,20 +194,22 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                               </div>
                               <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
                                 <div className="mx-4 p-4 bg-primary/5 rounded-b-2xl border-x border-b border-primary/10 space-y-3">
-                                  <div className="flex gap-3">
-                                    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-primary/20">
-                                      <img src={item?.imageUrl} className="w-full h-full object-cover" alt="" />
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between">
-                                        <p className="text-xs font-black text-accent">{item?.name || "Surprise Meal"}</p>
-                                        <Badge variant="outline" className="text-[8px] h-4 border-primary/30 text-primary font-black uppercase">{item?.type || "Veg"}</Badge>
+                                  {items.map((item, i) => (
+                                    <div key={i} className="flex gap-3">
+                                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-primary/20">
+                                        <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed italic">
-                                        {item?.description || "No description available."}
-                                      </p>
+                                      <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-xs font-black text-accent">{item.name}</p>
+                                          <Badge variant="outline" className="text-[8px] h-4 border-primary/30 text-primary font-black uppercase">{item.type}</Badge>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed italic">
+                                          {item.description}
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
+                                  ))}
                                   <div className="flex items-center gap-2 pt-2 border-t border-primary/10">
                                     <UtensilsCrossed className="w-3 h-3 text-primary/60" />
                                     <span className="text-[9px] font-black uppercase text-primary/60 tracking-wider">Nutri-Balanced Meal Set</span>

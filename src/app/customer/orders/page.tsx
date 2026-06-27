@@ -290,6 +290,19 @@ export default function CustomerOrdersPage() {
     });
   };
 
+  const PackageItemCompact = ({ item, quantity = 1 }: { item: any, quantity?: number }) => (
+    <div className="flex items-center gap-2">
+      {item.type === 'Veg' ? (
+        <Leaf className="w-3 h-3 text-green-500 shrink-0" />
+      ) : (
+        <Flame className="w-3 h-3 text-red-500 shrink-0" />
+      )}
+      <span className="text-[11px] font-bold text-slate-600">
+        {quantity}x {item.name}
+      </span>
+    </div>
+  );
+
   const PackageItemRow = ({ item }: { item: any }) => (
     <div className="flex items-center gap-3 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30 transition-all hover:bg-white hover:border-primary/20 group">
       <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-secondary bg-white">
@@ -302,11 +315,6 @@ export default function CustomerOrdersPage() {
       <div className="flex-1 min-w-0">
         <p className="text-xs font-black text-accent truncate leading-tight">{item.name}</p>
         <p className={cn("text-[9px] font-bold uppercase", item.type === 'Veg' ? "text-green-600" : "text-red-600")}>{item.type}</p>
-      </div>
-      <div className="shrink-0 mr-1">
-        <div className="w-5 h-5 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-        </div>
       </div>
     </div>
   );
@@ -356,9 +364,10 @@ export default function CustomerOrdersPage() {
               const itemsToRender = assignedDates.length > 0 
                 ? assignedDates.map(dateStr => {
                     const itemIds = pkg?.monthlyAssignments?.[dateStr] || [];
-                    const firstId = itemIds[0];
+                    console.log('DEBUG: dateStr', dateStr, 'itemIds', itemIds);
+                    const items = Array.isArray(itemIds) ? itemIds : [itemIds];
                     return { 
-                      item: menu.find(m => m.id === firstId), 
+                      items: items.map(id => menu.find(m => m.id === id)).filter(item => item),
                       dateKey: dateStr, 
                       label: format(parseISO(dateStr), 'MMM dd, yyyy'),
                       dayNumber: parseISO(dateStr).getDate()
@@ -367,22 +376,22 @@ export default function CustomerOrdersPage() {
                 : items.map((item: any, idx: number) => {
                     const dateKey = getSubscriptionDayDate(pkg, idx);
                     const formattedLabel = dateKey ? format(parseISO(dateKey), 'MMM dd, yyyy') : `Day ${idx + 1}`;
-                    return { item, dateKey, label: formattedLabel, dayNumber: idx + 1 };
+                    return { items: [item], dateKey, label: formattedLabel, dayNumber: idx + 1 };
                   });
 
-              return itemsToRender.filter(x => !x.item || x.item.show !== false).map(({ item, dateKey, label, dayNumber }, idx) => {
+              return itemsToRender.filter(x => x.items.length > 0).map(({ items, dateKey, label, dayNumber }, idx) => {
                 const dayKey = `${order.id}-day-${idx}`;
                 const isOpen = !!openDays[dayKey];
                 const dayStatus = getDailyStatus(order, dateKey);
 
                 return (
-                  <Collapsible key={dayKey} open={isOpen} onValueChange={() => toggleDay(dayKey)} className="w-full">
+                  <Collapsible key={dayKey} open={isOpen} onOpenChange={() => toggleDay(dayKey)} className="w-full">
                     <div className={cn("flex items-center justify-between p-2.5 rounded-2xl border transition-all", isOpen ? "bg-white border-primary/30 shadow-sm" : "bg-secondary/20 border-secondary/30")}>
                       <div className="flex items-center gap-3">
                         <div className="bg-primary text-white font-black text-[9px] w-7 h-7 flex items-center justify-center rounded-lg shadow-sm">D{dayNumber}</div>
                         <div>
                           <p className="text-xs font-black text-accent">{label}</p>
-                          <p className="text-[9px] text-muted-foreground font-bold">{item?.name || "Surprise Meal"}</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">{items.map(i => i.name).join(', ')}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -397,20 +406,10 @@ export default function CustomerOrdersPage() {
                       </div>
                     </div>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
-                      <div className="mt-1 px-1">
-                        {item ? (
-                          <PackageItemRow item={item} />
-                        ) : (
-                          <div className="flex items-center gap-3 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30">
-                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-secondary bg-white flex items-center justify-center">
-                              <UtensilsCrossed className="w-5 h-5 text-primary/40" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-black text-accent truncate leading-tight">Surprise Meal</p>
-                              <p className="text-[9px] font-bold uppercase text-green-600">Veg/Non-Veg</p>
-                            </div>
-                          </div>
-                        )}
+                      <div className="mt-1 px-1 space-y-1">
+                        {items.map((item, i) => (
+                          <PackageItemCompact key={i} item={item} quantity={order.packageQuantity || 1} />
+                        ))}
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
