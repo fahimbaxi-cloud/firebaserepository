@@ -167,7 +167,7 @@ export default function BroadcastPage() {
   }, [sortedMenuItems, monthlySearchQuery]);
 
   // Form State
-  const [broadcastType, setBroadcastType] = useState<'daily' | 'monthly'>('daily');
+  const [broadcastType, setBroadcastType] = useState<'daily' | 'scheme'>('daily');
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [packageName, setPackageName] = useState('');
   const [message, setMessage] = useState('');
@@ -180,16 +180,17 @@ export default function BroadcastPage() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
-  // Monthly State
-  const [currentMonth, setCurrentMonth] = useState<number>(getMonth(new Date()));
-  const [currentYear, setCurrentYear] = useState<number>(getYear(new Date()));
-  const [monthlyAssignments, setMonthlyAssignments] = useState<Record<string, string[]>>({});
+  // Scheme State
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
+  const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
+  const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
+  const [schemeAssignments, setSchemeAssignments] = useState<Record<string, string[]>>({});
 
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(new Date(currentYear, currentMonth));
-    const end = endOfMonth(start);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth, currentYear]);
+  const daysInRange = useMemo(() => {
+    if (!schemeStartDate || !schemeEndDate) return [];
+    return eachDayOfInterval({ start: schemeStartDate, end: schemeEndDate });
+  }, [schemeStartDate, schemeEndDate]);
 
   const selectedItemsValue = useMemo(() => {
     if (broadcastType === 'daily') {
@@ -197,12 +198,12 @@ export default function BroadcastPage() {
         .filter(item => dailySelectedItems.includes(item.id))
         .reduce((sum, item) => sum + item.price, 0);
     } else {
-      const uniqueItemIds = Array.from(new Set(Object.values(monthlyAssignments).flat()));
+      const uniqueItemIds = Array.from(new Set(Object.values(schemeAssignments).flat()));
       return (menuItems || [])
         .filter(item => uniqueItemIds.includes(item.id))
         .reduce((sum, item) => sum + item.price, 0);
     }
-  }, [broadcastType, dailySelectedItems, monthlyAssignments, menuItems]);
+  }, [broadcastType, dailySelectedItems, schemeAssignments, menuItems]);
 
   const handleToggleDailyItem = (itemId: string) => {
     setDailySelectedItems(prev => 
@@ -210,8 +211,8 @@ export default function BroadcastPage() {
     );
   };
 
-  const handleToggleMonthlyItem = (dateKey: string, itemId: string) => {
-    setMonthlyAssignments(prev => {
+  const handleToggleSchemeItem = (dateKey: string, itemId: string) => {
+    setSchemeAssignments(prev => {
       const current = prev[dateKey] || [];
       const updated = current.includes(itemId) 
         ? current.filter(id => id !== itemId)
@@ -254,16 +255,16 @@ export default function BroadcastPage() {
 
     const dateStr = broadcastType === 'daily' 
       ? format(selectedDate || new Date(), 'MMMM d, yyyy') 
-      : format(new Date(currentYear, currentMonth), 'MMMM yyyy');
+      : `Scheme: ${schemeStartDate ? format(schemeStartDate, 'MMM d, yyyy') : ''} to ${schemeEndDate ? format(schemeEndDate, 'MMM d, yyyy') : ''}`;
 
     let finalItems: string[] = [];
     if (broadcastType === 'daily') {
       finalItems = dailySelectedItems;
     } else {
-      const sortedDays = [...daysInMonth].sort((a, b) => a.getTime() - b.getTime());
+      const sortedDays = [...daysInRange].sort((a, b) => a.getTime() - b.getTime());
       sortedDays.forEach(day => {
         const key = format(day, 'yyyy-MM-dd');
-        const itemsForDay = monthlyAssignments[key] || [];
+        const itemsForDay = schemeAssignments[key] || [];
         if (itemsForDay.length > 0) {
           finalItems.push(...itemsForDay);
         }
@@ -282,8 +283,8 @@ export default function BroadcastPage() {
       updatedAt: new Date().toISOString()
     };
 
-    if (broadcastType === 'monthly') {
-      newPackageData.monthlyAssignments = monthlyAssignments;
+    if (broadcastType === 'scheme') {
+      newPackageData.schemeAssignments = schemeAssignments;
     }
 
     if (editingPackageId) {
@@ -320,40 +321,16 @@ export default function BroadcastPage() {
         console.error(e);
         setSelectedDate(new Date());
       }
-    } else if (pkg.type === 'monthly' && pkg.dateContext) {
-      try {
-        const date = parse(pkg.dateContext, 'MMMM yyyy', new Date());
-        if (isValid(date)) {
-          const m = getMonth(date);
-          const y = getYear(date);
-          setCurrentMonth(m);
-          setCurrentYear(y);
-          if (pkg.monthlyAssignments) {
-            setMonthlyAssignments(pkg.monthlyAssignments);
-          } else if (pkg.items && pkg.items.length > 0) {
-            // Sequential distribution fallback for older items without direct assignment map
-            const start = startOfMonth(new Date(y, m));
-            const end = endOfMonth(start);
-            const days = eachDayOfInterval({ start, end });
-            const sortedDays = [...days].sort((a, b) => a.getTime() - b.getTime());
-            const reconstructed: Record<string, string[]> = {};
-            pkg.items.forEach((itemId, idx) => {
-              const day = sortedDays[idx % sortedDays.length];
-              if (day) {
-                const key = format(day, 'yyyy-MM-dd');
-                if (!reconstructed[key]) {
-                  reconstructed[key] = [];
-                }
-                reconstructed[key].push(itemId);
-              }
-            });
-            setMonthlyAssignments(reconstructed);
-          } else {
-            setMonthlyAssignments({});
-          }
-        }
-      } catch (e) {
-        console.error(e);
+    } else if (pkg.type === 'scheme' && pkg.dateContext) {
+      // For now, simple parsing might fail, so we might need a better way to store date range
+      // or assume the dateContext is NOT used for parsing
+      if (pkg.schemeAssignments) {
+        setSchemeAssignments(pkg.schemeAssignments);
+      } else if (pkg.items && pkg.items.length > 0) {
+        // Fallback or just empty
+        setSchemeAssignments({});
+      } else {
+        setSchemeAssignments({});
       }
     }
     
@@ -370,12 +347,14 @@ export default function BroadcastPage() {
     setEditingPackageId(null);
     setPackageName('');
     setDailySelectedItems([]);
-    setMonthlyAssignments({});
+    setSchemeAssignments({});
     setMessage('');
     setPackagePrice('');
     setImagePreview(null);
     setBroadcastType('daily');
     setSelectedDate(new Date());
+    setSchemeStartDate(new Date());
+    setSchemeEndDate(new Date());
   };
 
   return (
@@ -690,7 +669,7 @@ export default function BroadcastPage() {
                   <CardHeader className="pb-4">
                     <TabsList className="grid w-full grid-cols-2 rounded-2xl h-14 bg-secondary/50 p-1">
                       <TabsTrigger value="daily" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Daily Special</TabsTrigger>
-                      <TabsTrigger value="monthly" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Monthly Subscription</TabsTrigger>
+                      <TabsTrigger value="scheme" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Scheme</TabsTrigger>
                     </TabsList>
                   </CardHeader>
 
@@ -810,7 +789,7 @@ export default function BroadcastPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="monthly" className="m-0 space-y-6">
+                    <TabsContent value="scheme" className="m-0 space-y-6">
                       <div className="space-y-4">
                         <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Plan Name</Label>
                         <div className="relative">
@@ -826,31 +805,32 @@ export default function BroadcastPage() {
 
                       <div className="flex flex-col sm:flex-row gap-4 items-end">
                         <div className="flex-1 space-y-2">
-                          <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Target Month</Label>
-                          <Select 
-                            value={currentMonth.toString()} 
-                            onValueChange={(val) => setCurrentMonth(parseInt(val))}
-                          >
-                            <SelectTrigger className="rounded-2xl h-14 bg-secondary/30 border-none font-bold px-6">
-                              <SelectValue placeholder="Month" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-2xl">
-                              {Array.from({ length: 12 }).map((_, i) => (
-                                <SelectItem key={i} value={i.toString()}>
-                                  {mounted ? format(new Date(2024, i), 'MMMM') : '...'}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Start Date</Label>
+                          <Popover open={isStartPopoverOpen} onOpenChange={setIsStartPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full h-14 justify-start text-left font-bold rounded-2xl bg-secondary/30 border-none px-6">
+                                <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
+                                {schemeStartDate ? format(schemeStartDate, "PPP") : <span>Pick date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                              <Calendar mode="single" selected={schemeStartDate} onSelect={(date) => { setSchemeStartDate(date); setIsStartPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div className="flex-1 space-y-2">
-                          <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Year</Label>
-                          <Input 
-                            type="number" 
-                            value={currentYear} 
-                            onChange={(e) => setCurrentYear(parseInt(e.target.value) || new Date().getFullYear())}
-                            className="rounded-2xl h-14 bg-secondary/30 border-none font-bold px-6 focus-visible:ring-0"
-                          />
+                          <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">End Date</Label>
+                          <Popover open={isEndPopoverOpen} onOpenChange={setIsEndPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full h-14 justify-start text-left font-bold rounded-2xl bg-secondary/30 border-none px-6">
+                                <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
+                                {schemeEndDate ? format(schemeEndDate, "PPP") : <span>Pick date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                              <Calendar mode="single" selected={schemeEndDate} onSelect={(date) => { setSchemeEndDate(date); setIsEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
@@ -858,15 +838,15 @@ export default function BroadcastPage() {
                         <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Assign Items to Calendar</Label>
                         <ScrollArea className="h-[400px] pr-4 border-2 border-secondary/50 rounded-2xl bg-secondary/10 overflow-hidden">
                           <div className="divide-y divide-secondary/30">
-                            {daysInMonth.map((day) => {
+                            {daysInRange.map((day) => {
                               const dateKey = format(day, 'yyyy-MM-dd');
-                              const assignments = monthlyAssignments[dateKey] || [];
+                              const assignments = schemeAssignments[dateKey] || [];
                               return (
                                 <div key={dateKey} className="p-4 flex items-center justify-between hover:bg-white/50 transition-colors">
                                   <div className="flex items-center gap-4">
                                     <div className="text-center bg-white rounded-2xl p-2 min-w-[65px] shadow-sm border border-secondary/50">
-                                      <p className="text-[10px] font-black text-primary uppercase">{mounted ? format(day, 'EEE') : '...'}</p>
-                                      <p className="text-xl font-black leading-none">{mounted ? format(day, 'dd') : '..'}</p>
+                                      <p className="text-[10px] font-black text-primary uppercase">{format(day, 'EEE')}</p>
+                                      <p className="text-xl font-black leading-none">{format(day, 'dd')}</p>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 max-w-[200px]">
                                       {assignments.length > 0 ? (
@@ -892,7 +872,7 @@ export default function BroadcastPage() {
                                     </PopoverTrigger>
                                     <PopoverContent className="w-72 p-0 rounded-2xl shadow-2xl border-none overflow-hidden" align="end">
                                       <div className="bg-secondary/20 p-3 border-b">
-                                        <p className="text-[10px] font-black uppercase text-accent">{mounted ? format(day, 'PPPP') : '...'}</p>
+                                        <p className="text-[10px] font-black uppercase text-accent">{format(day, 'PPPP')}</p>
                                       </div>
                                       <div className="p-2 border-b bg-white relative">
                                         <Input 
@@ -913,7 +893,7 @@ export default function BroadcastPage() {
                                                   "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
                                                   assignments.includes(item.id) ? "bg-primary/5" : "hover:bg-secondary/50"
                                                 )}
-                                                onClick={() => handleToggleMonthlyItem(dateKey, item.id)}
+                                                onClick={() => handleToggleSchemeItem(dateKey, item.id)}
                                               >
                                                 <Checkbox checked={assignments.includes(item.id)} className="rounded-md h-5 w-5 animate-in fade-in zoom-in-50 duration-200" />
                                                 <div className="flex-1">

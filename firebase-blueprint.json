@@ -92,14 +92,16 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["daily", "monthly"] },
-        "dateContext": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily", "scheme"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
         "itemsCount": { "type": "number" },
         "price": { "type": "number" },
         "message": { "type": "string" },
         "createdAt": { "type": "string" },
         "imageUrl": { "type": "string" },
-        "items": { "type": "array", "items": { "type": "string" } }
+        "items": { "type": "array", "items": { "type": "string" } },
+        "schemeAssignments": { "type": "object" }
       }
     },
     "Order": {

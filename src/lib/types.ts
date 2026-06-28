@@ -58,15 +58,16 @@ export interface MenuItem {
 export interface BroadcastPackage {
   id: string;
   name: string;
-  type: 'daily' | 'monthly';
-  dateContext: string; // e.g., "March 15, 2024" or "March 2024"
+  type: 'daily' | 'scheme';
+  startDate: string;
+  endDate: string;
   itemsCount: number;
   price: number;
   message: string;
   createdAt: string;
   imageUrl?: string;
   items?: string[]; // IDs of menu items included
-  monthlyAssignments?: Record<string, string[]>;
+  schemeAssignments?: Record<string, string[]>;
 }
 
 export interface Order {
