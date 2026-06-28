@@ -180,15 +180,16 @@ export default function BroadcastPage() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
-  // Scheme State
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
-  const [schemeAssignments, setSchemeAssignments] = useState<Record<string, string[]>>({});
+  // Monthly State
+  const [currentMonth, setCurrentMonth] = useState<number>(getMonth(new Date()));
+  const [currentYear, setCurrentYear] = useState<number>(getYear(new Date()));
+  const [monthlyAssignments, setMonthlyAssignments] = useState<Record<string, string[]>>({});
 
-  const daysInInterval = useMemo(() => {
-    if (!schemeStartDate || !schemeEndDate || schemeStartDate > schemeEndDate) return [];
-    return eachDayOfInterval({ start: schemeStartDate, end: schemeEndDate });
-  }, [schemeStartDate, schemeEndDate]);
+  const daysInMonth = useMemo(() => {
+    const start = startOfMonth(new Date(currentYear, currentMonth));
+    const end = endOfMonth(start);
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth, currentYear]);
 
   const selectedItemsValue = useMemo(() => {
     if (broadcastType === 'daily') {
@@ -196,12 +197,12 @@ export default function BroadcastPage() {
         .filter(item => dailySelectedItems.includes(item.id))
         .reduce((sum, item) => sum + item.price, 0);
     } else {
-      const uniqueItemIds = Array.from(new Set(Object.values(schemeAssignments).flat()));
+      const uniqueItemIds = Array.from(new Set(Object.values(monthlyAssignments).flat()));
       return (menuItems || [])
         .filter(item => uniqueItemIds.includes(item.id))
         .reduce((sum, item) => sum + item.price, 0);
     }
-  }, [broadcastType, dailySelectedItems, schemeAssignments, menuItems]);
+  }, [broadcastType, dailySelectedItems, monthlyAssignments, menuItems]);
 
   const handleToggleDailyItem = (itemId: string) => {
     setDailySelectedItems(prev => 
@@ -209,8 +210,8 @@ export default function BroadcastPage() {
     );
   };
 
-  const handleToggleSchemeItem = (dateKey: string, itemId: string) => {
-    setSchemeAssignments(prev => {
+  const handleToggleMonthlyItem = (dateKey: string, itemId: string) => {
+    setMonthlyAssignments(prev => {
       const current = prev[dateKey] || [];
       const updated = current.includes(itemId) 
         ? current.filter(id => id !== itemId)
@@ -253,16 +254,16 @@ export default function BroadcastPage() {
 
     const dateStr = broadcastType === 'daily' 
       ? format(selectedDate || new Date(), 'MMMM d, yyyy') 
-      : `${format(schemeStartDate || new Date(), 'MMM d, yyyy')} - ${format(schemeEndDate || new Date(), 'MMM d, yyyy')}`;
+      : format(new Date(currentYear, currentMonth), 'MMMM yyyy');
 
     let finalItems: string[] = [];
     if (broadcastType === 'daily') {
       finalItems = dailySelectedItems;
     } else {
-      const sortedDays = [...daysInInterval].sort((a, b) => a.getTime() - b.getTime());
+      const sortedDays = [...daysInMonth].sort((a, b) => a.getTime() - b.getTime());
       sortedDays.forEach(day => {
         const key = format(day, 'yyyy-MM-dd');
-        const itemsForDay = schemeAssignments[key] || [];
+        const itemsForDay = monthlyAssignments[key] || [];
         if (itemsForDay.length > 0) {
           finalItems.push(...itemsForDay);
         }
@@ -281,8 +282,8 @@ export default function BroadcastPage() {
       updatedAt: new Date().toISOString()
     };
 
-    if (broadcastType === 'scheme') {
-      newPackageData.schemeAssignments = schemeAssignments;
+    if (broadcastType === 'monthly') {
+      newPackageData.monthlyAssignments = monthlyAssignments;
     }
 
     if (editingPackageId) {
@@ -319,19 +320,36 @@ export default function BroadcastPage() {
         console.error(e);
         setSelectedDate(new Date());
       }
-    } else if (pkg.type === 'scheme' && pkg.dateContext) {
+    } else if (pkg.type === 'monthly' && pkg.dateContext) {
       try {
-        // Need to parse range date string. Assuming format "MMM d, yyyy - MMM d, yyyy"
-        const [startStr, endStr] = pkg.dateContext.split(' - ');
-        const startDate = parse(startStr, 'MMM d, yyyy', new Date());
-        const endDate = parse(endStr, 'MMM d, yyyy', new Date());
-        if (isValid(startDate) && isValid(endDate)) {
-          setSchemeStartDate(startDate);
-          setSchemeEndDate(endDate);
-          if (pkg.schemeAssignments) {
-            setSchemeAssignments(pkg.schemeAssignments);
+        const date = parse(pkg.dateContext, 'MMMM yyyy', new Date());
+        if (isValid(date)) {
+          const m = getMonth(date);
+          const y = getYear(date);
+          setCurrentMonth(m);
+          setCurrentYear(y);
+          if (pkg.monthlyAssignments) {
+            setMonthlyAssignments(pkg.monthlyAssignments);
+          } else if (pkg.items && pkg.items.length > 0) {
+            // Sequential distribution fallback for older items without direct assignment map
+            const start = startOfMonth(new Date(y, m));
+            const end = endOfMonth(start);
+            const days = eachDayOfInterval({ start, end });
+            const sortedDays = [...days].sort((a, b) => a.getTime() - b.getTime());
+            const reconstructed: Record<string, string[]> = {};
+            pkg.items.forEach((itemId, idx) => {
+              const day = sortedDays[idx % sortedDays.length];
+              if (day) {
+                const key = format(day, 'yyyy-MM-dd');
+                if (!reconstructed[key]) {
+                  reconstructed[key] = [];
+                }
+                reconstructed[key].push(itemId);
+              }
+            });
+            setMonthlyAssignments(reconstructed);
           } else {
-            setSchemeAssignments({});
+            setMonthlyAssignments({});
           }
         }
       } catch (e) {
@@ -352,14 +370,12 @@ export default function BroadcastPage() {
     setEditingPackageId(null);
     setPackageName('');
     setDailySelectedItems([]);
-    setSchemeAssignments({});
+    setMonthlyAssignments({});
     setMessage('');
     setPackagePrice('');
     setImagePreview(null);
     setBroadcastType('daily');
     setSelectedDate(new Date());
-    setSchemeStartDate(new Date());
-    setSchemeEndDate(new Date());
   };
 
   return (
@@ -674,7 +690,7 @@ export default function BroadcastPage() {
                   <CardHeader className="pb-4">
                     <TabsList className="grid w-full grid-cols-2 rounded-2xl h-14 bg-secondary/50 p-1">
                       <TabsTrigger value="daily" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Daily Special</TabsTrigger>
-                      <TabsTrigger value="monthly" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Scheme</TabsTrigger>
+                      <TabsTrigger value="monthly" className="rounded-xl font-bold h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">Monthly Subscription</TabsTrigger>
                     </TabsList>
                   </CardHeader>
 
@@ -897,7 +913,7 @@ export default function BroadcastPage() {
                                                   "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
                                                   assignments.includes(item.id) ? "bg-primary/5" : "hover:bg-secondary/50"
                                                 )}
-                                                onClick={() => handleToggleSchemeItem(dateKey, item.id)}
+                                                onClick={() => handleToggleMonthlyItem(dateKey, item.id)}
                                               >
                                                 <Checkbox checked={assignments.includes(item.id)} className="rounded-md h-5 w-5 animate-in fade-in zoom-in-50 duration-200" />
                                                 <div className="flex-1">
