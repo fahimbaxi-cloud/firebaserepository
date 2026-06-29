@@ -53,8 +53,10 @@ export default function NewOfflineOrderPage() {
 
   // Scheme Date States
   const [activeTab, setActiveTab] = useState('daily');
-  const [refMonth, setRefMonth] = useState<string>(format(new Date(), "MMMM"));
-  const [refYear, setRefYear] = useState<string>(format(new Date(), "yyyy"));
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
+  const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
+  const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
 
   // Auto-adjust AM/PM based on slot
   useEffect(() => {
@@ -95,20 +97,24 @@ export default function NewOfflineOrderPage() {
   }, [broadcastPackages]);
 
   const sortedSchemePackages = useMemo(() => {
-    if (!broadcastPackages) return [];
+    if (!broadcastPackages || !schemeStartDate || !schemeEndDate) return [];
+    
     return [...broadcastPackages]
-      .filter(pkg => pkg.type === 'monthly')
-      .sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
-  }, [broadcastPackages]);
+      .filter(pkg => {
+        if (pkg.type !== 'scheme') return false;
+        if (!pkg.startDate || !pkg.endDate) return false;
+        const pStart = new Date(pkg.startDate);
+        const pEnd = new Date(pkg.endDate);
+        // Overlap logic: Scheme interval [pStart, pEnd] overlaps with user interval [schemeStartDate, schemeEndDate]
+        return pStart <= (schemeEndDate) && pEnd >= (schemeStartDate);
+      })
+      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  }, [broadcastPackages, schemeStartDate, schemeEndDate]);
 
   const targetDailyDateStr = useMemo(() => {
     if (!selectedDate) return '';
     return format(addDays(selectedDate, 1), "MMMM d, yyyy");
   }, [selectedDate]);
-
-  const targetMonthStr = useMemo(() => {
-    return `${refMonth} ${refYear}`;
-  }, [refMonth, refYear]);
 
   const cartPackages = useMemo(() => {
     return Object.entries(selectedPackages)
@@ -166,16 +172,11 @@ export default function NewOfflineOrderPage() {
       // Calculate referenceDate and targetDeliveryDate depending on daily vs subscription (scheme)
       const calculatedRefDate = pkg!.type === 'daily'
         ? (selectedDate || new Date()).toISOString()
-        : (() => {
-            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            const mIdx = months.indexOf(refMonth);
-            const d = new Date(parseInt(refYear), mIdx >= 0 ? mIdx : 0, 1, 12, 0, 0);
-            return d.toISOString();
-          })();
+        : (pkg!.startDate || new Date().toISOString());
 
       const calculatedTargetDeliveryDate = pkg!.type === 'daily'
         ? targetDailyDateStr
-        : `${refMonth} ${refYear}`;
+        : `${pkg!.startDate} to ${pkg!.endDate}`;
 
       // Save to Firestore 'orders' collection (Same structure as online entry)
       addDocumentNonBlocking(ordersRef, {
@@ -410,31 +411,33 @@ export default function NewOfflineOrderPage() {
                       </TabsContent>
 
                       <TabsContent value="scheme" className="space-y-4 outline-none animate-in fade-in duration-300">
-                        {/* Month and Year Selection for Schemes */}
+                        {/* Date Range Selection for Schemes */}
                         <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
-                          <div className="space-y-2 max-w-md">
-                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Reference Month & Year</Label>
-                            <div className="flex gap-2">
-                              <Select value={refMonth} onValueChange={setRefMonth}>
-                                <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-white shadow-sm">
-                                  <SelectValue placeholder="Month" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                  {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m) => (
-                                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Select value={refYear} onValueChange={setRefYear}>
-                                <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-white shadow-sm w-28">
-                                  <SelectValue placeholder="Year" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                  {["2025", "2026", "2027", "2028", "2029", "2030"].map((y) => (
-                                    <SelectItem key={y} value={y}>{y}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                          <div className="space-y-4">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Scheme Date Range</Label>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Popover open={isStartPopoverOpen} onOpenChange={setIsStartPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                    {schemeStartDate ? format(schemeStartDate, "PPP") : <span>Start Date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                  <Calendar mode="single" selected={schemeStartDate} onSelect={(date) => { setSchemeStartDate(date); setIsStartPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                </PopoverContent>
+                              </Popover>
+                              <Popover open={isEndPopoverOpen} onOpenChange={setIsEndPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                    {schemeEndDate ? format(schemeEndDate, "PPP") : <span>End Date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                  <Calendar mode="single" selected={schemeEndDate} onSelect={(date) => { setSchemeEndDate(date); setIsEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                </PopoverContent>
+                              </Popover>
                             </div>
                           </div>
                         </div>
