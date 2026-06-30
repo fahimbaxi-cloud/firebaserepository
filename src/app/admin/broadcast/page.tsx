@@ -285,6 +285,8 @@ export default function BroadcastPage() {
 
     if (broadcastType === 'scheme') {
       newPackageData.schemeAssignments = schemeAssignments;
+      newPackageData.startDate = schemeStartDate?.toISOString();
+      newPackageData.endDate = schemeEndDate?.toISOString();
     }
 
     if (editingPackageId) {
@@ -321,17 +323,14 @@ export default function BroadcastPage() {
         console.error(e);
         setSelectedDate(new Date());
       }
-    } else if (pkg.type === 'scheme' && pkg.dateContext) {
-      // For now, simple parsing might fail, so we might need a better way to store date range
-      // or assume the dateContext is NOT used for parsing
+    } else if (pkg.type === 'scheme') {
       if (pkg.schemeAssignments) {
         setSchemeAssignments(pkg.schemeAssignments);
-      } else if (pkg.items && pkg.items.length > 0) {
-        // Fallback or just empty
-        setSchemeAssignments({});
       } else {
         setSchemeAssignments({});
       }
+      if (pkg.startDate) setSchemeStartDate(new Date(pkg.startDate));
+      if (pkg.endDate) setSchemeEndDate(new Date(pkg.endDate));
     }
     
     setView('edit');
