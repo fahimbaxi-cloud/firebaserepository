@@ -92,7 +92,7 @@ export default function BroadcastPage() {
   const [dailySearchQuery, setDailySearchQuery] = useState('');
   const [monthlySearchQuery, setMonthlySearchQuery] = useState('');
   const [packageSearchQuery, setPackageSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'daily' | 'scheme'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'daily' | 'monthly'>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc'>('newest');
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
@@ -111,23 +111,23 @@ export default function BroadcastPage() {
       result = result.filter(pkg => (pkg.name || '').toLowerCase().includes(q));
     }
 
-    if (filterStartDate || filterEndDate) {
+    if (filterStartDate) {
       result = result.filter(pkg => {
-        const sStart = filterStartDate ? new Date(filterStartDate) : new Date(0);
-        sStart.setHours(0, 0, 0, 0);
-        const sEnd = filterEndDate ? new Date(filterEndDate) : new Date(8640000000000000);
-        sEnd.setHours(23, 59, 59, 999);
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const start = new Date(filterStartDate);
+        start.setHours(0, 0, 0, 0);
+        return createdAtDate >= start;
+      });
+    }
 
-        if (pkg.type === 'scheme') {
-          if (!pkg.startDate || !pkg.endDate) return false;
-          const pStart = new Date(pkg.startDate);
-          const pEnd = new Date(pkg.endDate);
-          return pStart <= sEnd && pEnd >= sStart;
-        } else {
-          if (!pkg.createdAt) return false;
-          const createdAtDate = new Date(pkg.createdAt);
-          return createdAtDate >= sStart && createdAtDate <= sEnd;
-        }
+    if (filterEndDate) {
+      result = result.filter(pkg => {
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const end = new Date(filterEndDate);
+        end.setHours(23, 59, 59, 999);
+        return createdAtDate <= end;
       });
     }
 
@@ -420,15 +420,15 @@ export default function BroadcastPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTypeFilter('scheme')}
+                        onClick={() => setTypeFilter('monthly')}
                         className={cn(
                           "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all h-full flex-1 sm:flex-none whitespace-nowrap",
-                          typeFilter === 'scheme' 
+                          typeFilter === 'monthly' 
                             ? "bg-white text-primary shadow-sm" 
                             : "text-muted-foreground hover:text-accent"
                         )}
                       >
-                        Scheme
+                        Monthly
                       </button>
                     </div>
 
