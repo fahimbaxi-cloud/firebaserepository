@@ -101,8 +101,6 @@ export default function BroadcastPage() {
 
   const filteredPackages = useMemo(() => {
     let result = [...sortedPackages];
-    console.log("DEBUG: filteredPackages, typeFilter:", typeFilter, "filterStartDate:", filterStartDate, "filterEndDate:", filterEndDate, "result.length:", result.length);
-    console.log("DEBUG: packageTypes:", result.map(p => p.type));
 
     if (typeFilter !== 'all') {
       result = result.filter(pkg => pkg.type === typeFilter);
@@ -121,7 +119,7 @@ export default function BroadcastPage() {
         sEnd.setHours(23, 59, 59, 999);
 
         if (pkg.type === 'scheme') {
-          if (!pkg.startDate || !pkg.endDate) return true; // Show schemes without dates by default
+          if (!pkg.startDate || !pkg.endDate) return false;
           const pStart = new Date(pkg.startDate);
           const pEnd = new Date(pkg.endDate);
           return pStart <= sEnd && pEnd >= sStart;
@@ -183,8 +181,8 @@ export default function BroadcastPage() {
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
   // Scheme State
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
   const [schemeAssignments, setSchemeAssignments] = useState<Record<string, string[]>>({});

@@ -103,13 +103,13 @@ export default function NewOfflineOrderPage() {
       .filter(pkg => {
         if (pkg.type !== 'scheme') return false;
         if (!schemeStartDate || !schemeEndDate) return true; // Show all if dates not set
-        if (!pkg.startDate || !pkg.endDate) return true; // Show schemes without dates by default
+        if (!pkg.startDate || !pkg.endDate) return false;
         const pStart = new Date(pkg.startDate);
         const pEnd = new Date(pkg.endDate);
         // Overlap logic: Scheme interval [pStart, pEnd] overlaps with user interval [schemeStartDate, schemeEndDate]
         return pStart <= (schemeEndDate) && pEnd >= (schemeStartDate);
       })
-      .sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime());
+      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
   }, [broadcastPackages, schemeStartDate, schemeEndDate]);
 
   const targetDailyDateStr = useMemo(() => {
