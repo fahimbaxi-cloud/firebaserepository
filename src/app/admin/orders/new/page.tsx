@@ -52,9 +52,9 @@ export default function NewOfflineOrderPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
 
   // Scheme Date States
-  const [activeTab, setActiveTab] = useState('daily');
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
+  const [activeTab, setActiveTab] = useState('all');
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
 
@@ -97,11 +97,14 @@ export default function NewOfflineOrderPage() {
   }, [broadcastPackages]);
 
   const sortedSchemePackages = useMemo(() => {
-    if (!broadcastPackages || !schemeStartDate || !schemeEndDate) return [];
+    if (!broadcastPackages) return [];
     
     return [...broadcastPackages]
       .filter(pkg => {
         if (pkg.type !== 'scheme') return false;
+        
+        if (!schemeStartDate || !schemeEndDate) return true; // Show all if no filter
+
         if (!pkg.startDate || !pkg.endDate) return false;
         const pStart = new Date(pkg.startDate);
         const pEnd = new Date(pkg.endDate);
@@ -110,6 +113,12 @@ export default function NewOfflineOrderPage() {
       })
       .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
   }, [broadcastPackages, schemeStartDate, schemeEndDate]);
+
+  const sortedAllPackages = useMemo(() => {
+    if (!broadcastPackages) return [];
+    return [...broadcastPackages]
+      .sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
+  }, [broadcastPackages]);
 
   const targetDailyDateStr = useMemo(() => {
     if (!selectedDate) return '';
@@ -301,7 +310,8 @@ export default function NewOfflineOrderPage() {
               <div className="w-full">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-                    <TabsList className="grid grid-cols-2 w-full sm:w-[320px] bg-secondary/20 p-1 rounded-2xl h-12">
+                    <TabsList className="grid grid-cols-3 w-full sm:w-[480px] bg-secondary/20 p-1 rounded-2xl h-12">
+                      <TabsTrigger value="all" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">All</TabsTrigger>
                       <TabsTrigger value="daily" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Daily Package</TabsTrigger>
                       <TabsTrigger value="scheme" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Scheme</TabsTrigger>
                     </TabsList>
@@ -315,6 +325,64 @@ export default function NewOfflineOrderPage() {
                     </div>
                   ) : (
                     <>
+                      <TabsContent value="all" className="space-y-4 outline-none animate-in fade-in duration-300">
+                        {sortedAllPackages.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {sortedAllPackages.map((pkg) => (
+                                <div 
+                                  key={pkg.id} 
+                                  className={cn(
+                                    "p-5 border-2 rounded-[2rem] transition-all flex flex-col justify-between h-full group relative overflow-hidden",
+                                    selectedPackages[pkg.id] > 0 
+                                      ? "border-primary bg-primary/5 shadow-md" 
+                                      : "border-secondary/30 bg-white hover:border-primary/20"
+                                  )}
+                                >
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <span className="text-[10px] font-bold text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded">
+                                        {pkg.dateContext || pkg.type}
+                                      </span>
+                                      <span className="font-black text-primary text-xl">Rs {pkg.price}</span>
+                                    </div>
+                                    <p className="font-black text-sm text-accent leading-tight line-clamp-2 pr-10">{pkg.name}</p>
+                                    <p className="text-[10px] text-muted-foreground italic font-medium">"{pkg.message}"</p>
+                                  </div>
+                                  <div className="mt-4 flex items-center justify-between bg-secondary/20 p-2 rounded-2xl">
+                                    <span className="text-xs font-bold px-2">Add to Order</span>
+                                    <div className="flex items-center gap-3">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-white shadow-sm hover:text-destructive animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, -1)}
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <span className="font-black text-lg w-4 text-center">{selectedPackages[pkg.id] || 0}</span>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-9 w-9 rounded-xl bg-primary text-white hover:bg-primary/90 hover:text-white shadow-md animate-none" 
+                                        onClick={() => updatePackageQuantity(pkg.id, 1)}
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-10 border-2 border-dashed border-secondary/50 rounded-[2rem] flex flex-col items-center justify-center text-center space-y-3 bg-secondary/5 opacity-60">
+                            <div className="p-4 bg-white rounded-full">
+                              <Info className="w-8 h-8 text-muted-foreground/30" />
+                            </div>
+                            <p className="text-sm font-bold text-muted-foreground max-w-[250px]">No packages found in Firestore.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+
                       <TabsContent value="daily" className="space-y-4 outline-none animate-in fade-in duration-300">
                         {/* Reference Date and Target Delivery Date specifically for Daily Packages */}
                         <div className="flex flex-col md:flex-row gap-4 mb-6 bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
@@ -415,7 +483,7 @@ export default function NewOfflineOrderPage() {
                         <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
                           <div className="space-y-4">
                             <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Scheme Date Range</Label>
-                            <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="flex flex-col sm:flex-row gap-4 items-center">
                               <Popover open={isStartPopoverOpen} onOpenChange={setIsStartPopoverOpen}>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
@@ -438,13 +506,21 @@ export default function NewOfflineOrderPage() {
                                   <Calendar mode="single" selected={schemeEndDate} onSelect={(date) => { setSchemeEndDate(date); setIsEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
                                 </PopoverContent>
                               </Popover>
+                              {(schemeStartDate || schemeEndDate) && (
+                                <Button 
+                                  variant="ghost" 
+                                  onClick={() => { setSchemeStartDate(undefined); setSchemeEndDate(undefined); }}
+                                  className="text-xs font-bold text-destructive hover:text-destructive/80"
+                                >
+                                  Clear Filter
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
                         {sortedSchemePackages.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {sortedSchemePackages.map((pkg) => {
-                              const isTargetMatch = pkg.dateContext === targetMonthStr;
                               return (
                                 <div 
                                   key={pkg.id} 
@@ -452,16 +528,9 @@ export default function NewOfflineOrderPage() {
                                     "p-5 border-2 rounded-[2rem] transition-all flex flex-col justify-between h-full group relative overflow-hidden",
                                     selectedPackages[pkg.id] > 0 
                                       ? "border-primary bg-primary/5 shadow-md" 
-                                      : isTargetMatch 
-                                        ? "border-green-300 bg-green-50/40 hover:border-green-400" 
-                                        : "border-secondary/30 bg-white hover:border-primary/20"
+                                      : "border-secondary/30 bg-white hover:border-primary/20"
                                   )}
                                 >
-                                  {isTargetMatch && (
-                                    <div className="absolute top-0 right-0 bg-green-500 text-white font-black text-[8px] px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                                      <Check className="w-2.5 h-2.5" /> Month Match
-                                    </div>
-                                  )}
                                   <div className="space-y-2">
                                     <div className="flex justify-between items-start">
                                       <span className="text-[10px] font-bold text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded">
