@@ -181,8 +181,8 @@ export default function BroadcastPage() {
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
   // Scheme State
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
   const [schemeAssignments, setSchemeAssignments] = useState<Record<string, string[]>>({});
@@ -329,8 +329,16 @@ export default function BroadcastPage() {
       } else {
         setSchemeAssignments({});
       }
-      if (pkg.startDate) setSchemeStartDate(new Date(pkg.startDate));
-      if (pkg.endDate) setSchemeEndDate(new Date(pkg.endDate));
+      if (pkg.startDate) {
+        const d = typeof pkg.startDate === 'string' ? new Date(pkg.startDate) : (pkg.startDate.toDate ? pkg.startDate.toDate() : new Date(pkg.startDate));
+        console.log('Setting schemeStartDate:', d);
+        setSchemeStartDate(d);
+      }
+      if (pkg.endDate) {
+        const d = typeof pkg.endDate === 'string' ? new Date(pkg.endDate) : (pkg.endDate.toDate ? pkg.endDate.toDate() : new Date(pkg.endDate));
+        console.log('Setting schemeEndDate:', d);
+        setSchemeEndDate(d);
+      }
     }
     
     setView('edit');
