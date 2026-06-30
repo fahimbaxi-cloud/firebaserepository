@@ -111,23 +111,26 @@ export default function BroadcastPage() {
       result = result.filter(pkg => (pkg.name || '').toLowerCase().includes(q));
     }
 
-    if (filterStartDate) {
+    if (filterStartDate || filterEndDate) {
       result = result.filter(pkg => {
-        if (!pkg.createdAt) return false;
-        const createdAtDate = new Date(pkg.createdAt);
-        const start = new Date(filterStartDate);
-        start.setHours(0, 0, 0, 0);
-        return createdAtDate >= start;
-      });
-    }
+        const sStart = filterStartDate ? new Date(filterStartDate) : new Date(0);
+        sStart.setHours(0, 0, 0, 0);
+        const sEnd = filterEndDate ? new Date(filterEndDate) : new Date(8640000000000000);
+        sEnd.setHours(23, 59, 59, 999);
 
-    if (filterEndDate) {
-      result = result.filter(pkg => {
-        if (!pkg.createdAt) return false;
-        const createdAtDate = new Date(pkg.createdAt);
-        const end = new Date(filterEndDate);
-        end.setHours(23, 59, 59, 999);
-        return createdAtDate <= end;
+        if (pkg.type === 'scheme') {
+          // If a scheme doesn't have start/end dates, include it if no filter is applied, 
+          // or if filter is applied, maybe it should be excluded or included based on requirements. 
+          // Assuming we should show it if no date filtering is applied.
+          if (!pkg.startDate || !pkg.endDate) return !filterStartDate && !filterEndDate;
+          const pStart = new Date(pkg.startDate);
+          const pEnd = new Date(pkg.endDate);
+          return pStart <= sEnd && pEnd >= sStart;
+        } else {
+          if (!pkg.createdAt) return false;
+          const createdAtDate = new Date(pkg.createdAt);
+          return createdAtDate >= sStart && createdAtDate <= sEnd;
+        }
       });
     }
 
@@ -181,8 +184,8 @@ export default function BroadcastPage() {
   const [dailySelectedItems, setDailySelectedItems] = useState<string[]>([]);
 
   // Scheme State
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
   const [schemeAssignments, setSchemeAssignments] = useState<Record<string, string[]>>({});
