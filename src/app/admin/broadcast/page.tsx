@@ -113,6 +113,10 @@ export default function BroadcastPage() {
 
     if (filterStartDate) {
       result = result.filter(pkg => {
+        if (pkg.type === 'scheme') {
+          if (!pkg.startDate || !pkg.endDate) return false;
+          return new Date(pkg.endDate) >= filterStartDate;
+        }
         if (!pkg.createdAt) return false;
         const createdAtDate = new Date(pkg.createdAt);
         const start = new Date(filterStartDate);
@@ -123,6 +127,10 @@ export default function BroadcastPage() {
 
     if (filterEndDate) {
       result = result.filter(pkg => {
+        if (pkg.type === 'scheme') {
+          if (!pkg.startDate || !pkg.endDate) return false;
+          return new Date(pkg.startDate) <= filterEndDate;
+        }
         if (!pkg.createdAt) return false;
         const createdAtDate = new Date(pkg.createdAt);
         const end = new Date(filterEndDate);
