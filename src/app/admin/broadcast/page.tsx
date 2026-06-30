@@ -92,7 +92,7 @@ export default function BroadcastPage() {
   const [dailySearchQuery, setDailySearchQuery] = useState('');
   const [monthlySearchQuery, setMonthlySearchQuery] = useState('');
   const [packageSearchQuery, setPackageSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'daily' | 'monthly'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'daily' | 'scheme'>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc'>('newest');
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
@@ -420,15 +420,15 @@ export default function BroadcastPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTypeFilter('monthly')}
+                        onClick={() => setTypeFilter('scheme')}
                         className={cn(
                           "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all h-full flex-1 sm:flex-none whitespace-nowrap",
-                          typeFilter === 'monthly' 
+                          typeFilter === 'scheme' 
                             ? "bg-white text-primary shadow-sm" 
                             : "text-muted-foreground hover:text-accent"
                         )}
                       >
-                        Monthly
+                        Scheme
                       </button>
                     </div>
 
