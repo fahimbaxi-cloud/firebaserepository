@@ -194,8 +194,8 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                               </div>
                               <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
                                 <div className="mx-4 p-4 bg-primary/5 rounded-b-2xl border-x border-b border-primary/10 space-y-3">
-                                  {items.map((item, i) => (
-                                    <div key={i} className="flex gap-3">
+                                  {items.map((item) => (
+                                    <div key={item.id} className="flex gap-3">
                                       <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-primary/20">
                                         <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
                                       </div>
@@ -222,11 +222,11 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                       })()}
                     </div>
                   ) : (
-                    pkg.items?.map(itemId => {
+                    pkg.items?.map((itemId, idx) => {
                       const item = menuItems.find(m => m.id === itemId);
                       if (item && item.show === false) return null;
                       return (
-                        <div key={itemId} className="flex items-center gap-2 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30">
+                        <div key={`${itemId}-${idx}`} className="flex items-center gap-2 bg-secondary/20 p-2.5 rounded-2xl border border-secondary/30">
                           <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
                             <img src={item?.imageUrl} className="object-cover w-full h-full" alt="" />
                           </div>
