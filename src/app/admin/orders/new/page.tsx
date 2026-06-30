@@ -103,7 +103,7 @@ export default function NewOfflineOrderPage() {
       .filter(pkg => {
         if (pkg.type !== 'scheme') return false;
         if (!schemeStartDate || !schemeEndDate) return true; // Show all if dates not set
-        if (!pkg.startDate || !pkg.endDate) return false;
+        if (!pkg.startDate || !pkg.endDate) return true; // Show schemes without dates by default
         const pStart = new Date(pkg.startDate);
         const pEnd = new Date(pkg.endDate);
         // Overlap logic: Scheme interval [pStart, pEnd] overlaps with user interval [schemeStartDate, schemeEndDate]

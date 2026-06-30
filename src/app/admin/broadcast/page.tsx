@@ -101,6 +101,8 @@ export default function BroadcastPage() {
 
   const filteredPackages = useMemo(() => {
     let result = [...sortedPackages];
+    console.log("DEBUG: filteredPackages, typeFilter:", typeFilter, "filterStartDate:", filterStartDate, "filterEndDate:", filterEndDate, "result.length:", result.length);
+    console.log("DEBUG: packageTypes:", result.map(p => p.type));
 
     if (typeFilter !== 'all') {
       result = result.filter(pkg => pkg.type === typeFilter);
@@ -119,10 +121,7 @@ export default function BroadcastPage() {
         sEnd.setHours(23, 59, 59, 999);
 
         if (pkg.type === 'scheme') {
-          // If a scheme doesn't have start/end dates, include it if no filter is applied, 
-          // or if filter is applied, maybe it should be excluded or included based on requirements. 
-          // Assuming we should show it if no date filtering is applied.
-          if (!pkg.startDate || !pkg.endDate) return !filterStartDate && !filterEndDate;
+          if (!pkg.startDate || !pkg.endDate) return true; // Show schemes without dates by default
           const pStart = new Date(pkg.startDate);
           const pEnd = new Date(pkg.endDate);
           return pStart <= sEnd && pEnd >= sStart;
