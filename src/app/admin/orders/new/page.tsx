@@ -53,8 +53,8 @@ export default function NewOfflineOrderPage() {
 
   // Scheme Date States
   const [activeTab, setActiveTab] = useState('daily');
-  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
-  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(new Date());
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(new Date());
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
 
@@ -97,13 +97,12 @@ export default function NewOfflineOrderPage() {
   }, [broadcastPackages]);
 
   const sortedSchemePackages = useMemo(() => {
-    if (!broadcastPackages) return [];
+    if (!broadcastPackages || !schemeStartDate || !schemeEndDate) return [];
     
     return [...broadcastPackages]
       .filter(pkg => {
         if (pkg.type !== 'scheme') return false;
-        if (!schemeStartDate || !schemeEndDate) return true; // Show all if dates not set
-        if (!pkg.startDate || !pkg.endDate) return true;
+        if (!pkg.startDate || !pkg.endDate) return false;
         const pStart = new Date(pkg.startDate);
         const pEnd = new Date(pkg.endDate);
         // Overlap logic: Scheme interval [pStart, pEnd] overlaps with user interval [schemeStartDate, schemeEndDate]

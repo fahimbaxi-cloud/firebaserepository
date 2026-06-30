@@ -111,23 +111,23 @@ export default function BroadcastPage() {
       result = result.filter(pkg => (pkg.name || '').toLowerCase().includes(q));
     }
 
-    if (filterStartDate || filterEndDate) {
+    if (filterStartDate) {
       result = result.filter(pkg => {
-        const sStart = filterStartDate ? new Date(filterStartDate) : new Date(0);
-        sStart.setHours(0, 0, 0, 0);
-        const sEnd = filterEndDate ? new Date(filterEndDate) : new Date(8640000000000000);
-        sEnd.setHours(23, 59, 59, 999);
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const start = new Date(filterStartDate);
+        start.setHours(0, 0, 0, 0);
+        return createdAtDate >= start;
+      });
+    }
 
-        if (pkg.type === 'scheme') {
-          if (!pkg.startDate || !pkg.endDate) return true; 
-          const pStart = new Date(pkg.startDate);
-          const pEnd = new Date(pkg.endDate);
-          return pStart <= sEnd && pEnd >= sStart;
-        } else {
-          if (!pkg.createdAt) return false;
-          const createdAtDate = new Date(pkg.createdAt);
-          return createdAtDate >= sStart && createdAtDate <= sEnd;
-        }
+    if (filterEndDate) {
+      result = result.filter(pkg => {
+        if (!pkg.createdAt) return false;
+        const createdAtDate = new Date(pkg.createdAt);
+        const end = new Date(filterEndDate);
+        end.setHours(23, 59, 59, 999);
+        return createdAtDate <= end;
       });
     }
 
