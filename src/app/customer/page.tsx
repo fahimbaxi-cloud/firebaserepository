@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Sparkles, Calendar as CalendarIcon, ChevronRight, Truck, Clock, Package as PackageIcon, Loader2 } from 'lucide-react';
+import { Bell, Sparkles, CalendarIcon, ChevronRight, Truck, Clock, Package as PackageIcon, Loader2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { format, getMonth, getYear, isValid, addDays, startOfDay, parse, subDays, setHours, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -33,6 +34,12 @@ export default function CustomerHome() {
   const [timeValue, setTimeValue] = useState('08:30');
   const [timePeriod, setTimePeriod] = useState('AM');
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('Morning');
+  
+  const [activeTab, setActiveTab] = useState('all');
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
+  const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
+  const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
   
   const [dailyDate, setDailyDate] = useState<Date | undefined>(undefined);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -148,11 +155,27 @@ export default function CustomerHome() {
     return allPackages.filter(p => p.type === 'daily' && p.dateContext === dateStr);
   }, [dailyDate, allPackages]);
 
-  const filteredMonthlyPackages = useMemo(() => {
+  const filteredSchemePackages = useMemo(() => {
     if (!allPackages) return [];
-    const monthStr = format(new Date(monthlyYear, monthlyMonth), 'MMMM yyyy');
-    return allPackages.filter(p => p.type === 'monthly' && p.dateContext === monthStr);
-  }, [monthlyMonth, monthlyYear, allPackages]);
+    
+    return allPackages.filter(pkg => {
+      if (pkg.type !== 'scheme' && pkg.type !== 'monthly') return false;
+      
+      // If no filter, show all
+      if (!schemeStartDate || !schemeEndDate) return true;
+
+      if (!pkg.startDate || !pkg.endDate) return false;
+      const pStart = new Date(pkg.startDate);
+      const pEnd = new Date(pkg.endDate);
+      // Overlap logic: Scheme interval [pStart, pEnd] overlaps with user interval [schemeStartDate, schemeEndDate]
+      return pStart <= schemeEndDate && pEnd >= schemeStartDate;
+    });
+  }, [allPackages, schemeStartDate, schemeEndDate]);
+
+  const filteredAllPackages = useMemo(() => {
+    if (!allPackages) return [];
+    return allPackages;
+  }, [allPackages]);
 
   const upcomingOrder = useMemo(() => {
     if (!currentUser || !allOrders) return null;
@@ -286,112 +309,137 @@ export default function CustomerHome() {
         )}
 
         <section className="space-y-12">
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-primary" />
-                <h2 className="text-2xl font-bold font-headline">Daily Special Packages</h2>
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Selection (Showing Next Day Menu)</Label>
-                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full md:w-[240px] h-12 justify-start text-left font-bold rounded-2xl bg-white border-none shadow-sm px-4",
-                        !dailyDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                      {dailyDate ? format(dailyDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={dailyDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setDailyDate(date);
-                          setIsDatePickerOpen(false);
-                        }
-                      }}
-                      initialFocus
-                      className="rounded-3xl"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-3 w-full sm:w-[480px] bg-secondary/20 p-1 rounded-2xl h-12 mb-8">
+              <TabsTrigger value="all" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">All</TabsTrigger>
+              <TabsTrigger value="daily" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Daily</TabsTrigger>
+              <TabsTrigger value="scheme" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Scheme</TabsTrigger>
+            </TabsList>
 
-            {filteredDailyPackages.length > 0 ? (
-              <PackageGrid 
-                packages={filteredDailyPackages} 
-                onOrder={handleOrderClick} 
-                orderedIds={orderedPackageIds}
-                pastIds={pastPackageIds}
-                menuItems={menu}
-              />
-            ) : (
-              <div className="p-12 border-2 border-dashed border-secondary rounded-[2.5rem] bg-white/50 text-center space-y-3">
-                <p className="text-muted-foreground font-medium italic">
-                  No special packages found for {dailyDate ? format(addDays(dailyDate, 1), 'PPP') : 'tomorrow'}.
-                </p>
-              </div>
-            )}
-          </div>
+            <TabsContent value="all" className="space-y-12 outline-none animate-in fade-in duration-300">
+               {/* Include all sections here for 'all' tab? Or just show filtered? */}
+               {/* Actually the request says "tabs for all, daily and scheme". I'll put appropriate content in each tab. */}
+               {/* Maybe just render everything in "All"? Or just show a list? The user said "keep listing". */}
+               <PackageGrid packages={filteredAllPackages} onOrder={handleOrderClick} orderedIds={orderedPackageIds} pastIds={pastPackageIds} menuItems={menu} />
+            </TabsContent>
 
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-accent" />
-                <h2 className="text-2xl font-bold font-headline">Monthly Subscription Plans</h2>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col gap-2">
-                  <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Month</Label>
-                  <Select value={monthlyMonth.toString()} onValueChange={(val) => setMonthlyMonth(parseInt(val))}>
-                    <SelectTrigger className="w-[140px] h-12 rounded-2xl bg-white border-none shadow-sm font-bold px-4">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-none shadow-xl">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <SelectItem key={i} value={i.toString()}>
-                          {format(new Date(2024, i), 'MMMM')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <TabsContent value="daily" className="space-y-12 outline-none animate-in fade-in duration-300">
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-primary" />
+                    <h2 className="text-2xl font-bold font-headline">Daily Special Packages</h2>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Selection (Showing Next Day Menu)</Label>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full md:w-[240px] h-12 justify-start text-left font-bold rounded-2xl bg-white border-none shadow-sm px-4",
+                            !dailyDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                          {dailyDate ? format(dailyDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={dailyDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setDailyDate(date);
+                              setIsDatePickerOpen(false);
+                            }
+                          }}
+                          initialFocus
+                          className="rounded-3xl"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Year</Label>
-                  <Input 
-                    type="number" 
-                    value={monthlyYear} 
-                    onChange={(e) => setMonthlyYear(parseInt(e.target.value) || new Date().getFullYear())}
-                    className="w-[100px] h-12 rounded-2xl bg-white border-none shadow-sm font-bold px-4 focus-visible:ring-0"
+
+                {filteredDailyPackages.length > 0 ? (
+                  <PackageGrid 
+                    packages={filteredDailyPackages} 
+                    onOrder={handleOrderClick} 
+                    orderedIds={orderedPackageIds}
+                    pastIds={pastPackageIds}
+                    menuItems={menu}
                   />
-                </div>
+                ) : (
+                  <div className="p-12 border-2 border-dashed border-secondary rounded-[2.5rem] bg-white/50 text-center space-y-3">
+                    <p className="text-muted-foreground font-medium italic">
+                      No special packages found for {dailyDate ? format(addDays(dailyDate, 1), 'PPP') : 'tomorrow'}.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            </TabsContent>
 
-            {filteredMonthlyPackages.length > 0 ? (
-              <PackageGrid 
-                packages={filteredMonthlyPackages} 
-                onOrder={handleOrderClick} 
-                orderedIds={orderedPackageIds}
-                pastIds={pastPackageIds}
-                menuItems={menu}
-              />
-            ) : (
-              <div className="p-12 border-2 border-dashed border-secondary rounded-[2.5rem] bg-white/50 text-center space-y-3">
-                <p className="text-muted-foreground font-medium italic">No subscription plans found for {format(new Date(monthlyYear, monthlyMonth), 'MMMM yyyy')}.</p>
-              </div>
-            )}
-          </div>
+            <TabsContent value="scheme" className="space-y-12 outline-none animate-in fade-in duration-300">
+               {/* Scheme section with date filter */}
+               <div className="space-y-6">
+                 <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
+                    <div className="space-y-4">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Scheme Date Range</Label>
+                      <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <Popover open={isStartPopoverOpen} onOpenChange={setIsStartPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                              <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                              {schemeStartDate ? format(schemeStartDate, "PPP") : <span>Start Date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                            <Calendar mode="single" selected={schemeStartDate} onSelect={(date) => { setSchemeStartDate(date); setIsStartPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                          </PopoverContent>
+                        </Popover>
+                        <Popover open={isEndPopoverOpen} onOpenChange={setIsEndPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                              <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                              {schemeEndDate ? format(schemeEndDate, "PPP") : <span>End Date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                            <Calendar mode="single" selected={schemeEndDate} onSelect={(date) => { setSchemeEndDate(date); setIsEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                          </PopoverContent>
+                        </Popover>
+                        {(schemeStartDate || schemeEndDate) && (
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => { setSchemeStartDate(undefined); setSchemeEndDate(undefined); }}
+                            className="text-xs font-bold text-destructive hover:text-destructive/80"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {filteredSchemePackages.length > 0 ? (
+                    <PackageGrid 
+                      packages={filteredSchemePackages} 
+                      onOrder={handleOrderClick} 
+                      orderedIds={orderedPackageIds}
+                      pastIds={pastPackageIds}
+                      menuItems={menu}
+                    />
+                  ) : (
+                    <div className="p-12 border-2 border-dashed border-secondary rounded-[2.5rem] bg-white/50 text-center space-y-3">
+                      <p className="text-muted-foreground font-medium italic">No scheme packages found in range.</p>
+                    </div>
+                  )}
+               </div>
+            </TabsContent>
+          </Tabs>
         </section>
 
         <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>

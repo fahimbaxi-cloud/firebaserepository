@@ -10,13 +10,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Sparkles, RefreshCw, Upload, PlusCircle, MinusCircle, Loader2, ZoomIn, AlertCircle, Search, CalendarIcon, Info } from 'lucide-react';
 import { adminMenuItemDescriptionGeneration } from '@/ai/flows/admin-menu-item-description-generation';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { MenuItem, RawItem, MenuItemIngredient, Unit, BroadcastPackage } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 
@@ -31,6 +35,12 @@ export default function MenuManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'Veg' | 'Non-Veg'>('all');
   const [showFilter, setShowFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+
+  const [activeTab, setActiveTab] = useState('all');
+  const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
+  const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
+  const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
+  const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
 
   const menu = useMemo(() => {
     let items = [...(menuData || [])];
