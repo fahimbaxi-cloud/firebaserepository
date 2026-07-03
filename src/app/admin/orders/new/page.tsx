@@ -51,12 +51,72 @@ export default function NewOfflineOrderPage() {
   const [timePeriod, setTimePeriod] = useState('AM');
   const [deliveryAddress, setDeliveryAddress] = useState('');
 
+  // Daily Package Custom Logistics Configurations
+  const [dailyConfigs, setDailyConfigs] = useState<Record<string, {
+    referenceDate: Date;
+    slot: TimeSlot;
+    timeValue: string;
+    timePeriod: string;
+  }>>({});
+  const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
+
+  const getDailyConfig = (pkgId: string) => {
+    const existing = dailyConfigs[pkgId];
+    if (existing) return existing;
+    return {
+      referenceDate: new Date(),
+      slot: 'Morning' as TimeSlot,
+      timeValue: '08:30',
+      timePeriod: 'AM'
+    };
+  };
+
+  const updateDailyConfig = (pkgId: string, updates: Partial<{
+    referenceDate: Date;
+    slot: TimeSlot;
+    timeValue: string;
+    timePeriod: string;
+  }>) => {
+    setDailyConfigs(prev => {
+      const current = prev[pkgId] || {
+        referenceDate: new Date(),
+        slot: 'Morning' as TimeSlot,
+        timeValue: '08:30',
+        timePeriod: 'AM'
+      };
+      let updated = { ...current, ...updates };
+      if (updates.slot) {
+        updated.timePeriod = updates.slot === 'Morning' ? 'AM' : 'PM';
+        if (updates.slot === 'Morning' && updated.timeValue === '12:30') {
+          updated.timeValue = '08:30';
+        } else if (updates.slot === 'Noon' && updated.timeValue === '08:30') {
+          updated.timeValue = '12:30';
+        }
+      }
+      return {
+        ...prev,
+        [pkgId]: updated
+      };
+    });
+  };
+
   // Scheme Date States
   const [activeTab, setActiveTab] = useState('all');
   const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
   const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
   const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
+  const [isAllStartPopoverOpen, setIsAllStartPopoverOpen] = useState(false);
+  const [isAllEndPopoverOpen, setIsAllEndPopoverOpen] = useState(false);
+  const [isDailyStartPopoverOpen, setIsDailyStartPopoverOpen] = useState(false);
+  const [isDailyEndPopoverOpen, setIsDailyEndPopoverOpen] = useState(false);
+
+  // New Search and Date Range Filters
+  const [packageSearch, setPackageSearch] = useState('');
+  const [allStartDate, setAllStartDate] = useState<Date | undefined>(undefined);
+  const [allEndDate, setAllEndDate] = useState<Date | undefined>(undefined);
+  const [dailyRangeStartDate, setDailyRangeStartDate] = useState<Date | undefined>(undefined);
+  const [dailyRangeEndDate, setDailyRangeEndDate] = useState<Date | undefined>(undefined);
 
   // Auto-adjust AM/PM based on slot
   useEffect(() => {
@@ -89,17 +149,31 @@ export default function NewOfflineOrderPage() {
     return new Date(pkg.createdAt || 0);
   };
 
-  const sortedDailyPackages = useMemo(() => {
-    if (!broadcastPackages) return [];
-    return [...broadcastPackages]
-      .filter(pkg => pkg.type === 'daily')
-      .sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
-  }, [broadcastPackages]);
-
-  const sortedSchemePackages = useMemo(() => {
+  const filteredPackages = useMemo(() => {
     if (!broadcastPackages) return [];
     
-    return [...broadcastPackages]
+    return broadcastPackages.filter(pkg => {
+      // Name Search
+      if (packageSearch && !pkg.name.toLowerCase().includes(packageSearch.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [broadcastPackages, packageSearch]);
+
+  const sortedDailyPackages = useMemo(() => {
+    return filteredPackages
+      .filter(pkg => pkg.type === 'daily')
+      .filter(pkg => {
+        if (!dailyRangeStartDate || !dailyRangeEndDate) return true;
+        const pDate = getPackageDate(pkg);
+        return pDate >= dailyRangeStartDate && pDate <= dailyRangeEndDate;
+      })
+      .sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
+  }, [filteredPackages, dailyRangeStartDate, dailyRangeEndDate]);
+
+  const sortedSchemePackages = useMemo(() => {
+    return filteredPackages
       .filter(pkg => {
         if (pkg.type !== 'scheme') return false;
         
@@ -112,13 +186,17 @@ export default function NewOfflineOrderPage() {
         return pStart <= (schemeEndDate) && pEnd >= (schemeStartDate);
       })
       .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-  }, [broadcastPackages, schemeStartDate, schemeEndDate]);
+  }, [filteredPackages, schemeStartDate, schemeEndDate]);
 
   const sortedAllPackages = useMemo(() => {
-    if (!broadcastPackages) return [];
-    return [...broadcastPackages]
+    return filteredPackages
+      .filter(pkg => {
+        if (!allStartDate || !allEndDate) return true;
+        const pDate = getPackageDate(pkg);
+        return pDate >= allStartDate && pDate <= allEndDate;
+      })
       .sort((a, b) => getPackageDate(b).getTime() - getPackageDate(a).getTime());
-  }, [broadcastPackages]);
+  }, [filteredPackages, allStartDate, allEndDate]);
 
   const targetDailyDateStr = useMemo(() => {
     if (!selectedDate) return '';
@@ -137,6 +215,14 @@ export default function NewOfflineOrderPage() {
 
   const totalAmount = useMemo(() => {
     return cartPackages.reduce((sum, entry) => sum + (entry.pkg!.price * entry.qty), 0);
+  }, [cartPackages]);
+
+  const hasDailyPackages = useMemo(() => {
+    return cartPackages.some(entry => entry.pkg?.type === 'daily');
+  }, [cartPackages]);
+
+  const hasNonDailyPackages = useMemo(() => {
+    return cartPackages.length === 0 || cartPackages.some(entry => entry.pkg?.type !== 'daily');
   }, [cartPackages]);
 
   // Handlers
@@ -179,13 +265,21 @@ export default function NewOfflineOrderPage() {
       });
 
       // Calculate referenceDate and targetDeliveryDate depending on daily vs subscription (scheme)
-      const calculatedRefDate = pkg!.type === 'daily'
-        ? (selectedDate || new Date()).toISOString()
-        : (pkg!.startDate || new Date().toISOString());
+      let calculatedRefDate = '';
+      let calculatedTargetDeliveryDate = '';
+      let calculatedSlot = timeSlot;
+      let calculatedDeliveryTime = `${timeValue} ${timePeriod}`;
 
-      const calculatedTargetDeliveryDate = pkg!.type === 'daily'
-        ? targetDailyDateStr
-        : `${pkg!.startDate} to ${pkg!.endDate}`;
+      if (pkg!.type === 'daily') {
+        const config = getDailyConfig(pkg!.id);
+        calculatedRefDate = config.referenceDate.toISOString();
+        calculatedTargetDeliveryDate = format(addDays(config.referenceDate, 1), "MMMM d, yyyy");
+        calculatedSlot = config.slot;
+        calculatedDeliveryTime = `${config.timeValue} ${config.timePeriod}`;
+      } else {
+        calculatedRefDate = pkg!.startDate || new Date().toISOString();
+        calculatedTargetDeliveryDate = `${pkg!.startDate} to ${pkg!.endDate}`;
+      }
 
       // Save to Firestore 'orders' collection (Same structure as online entry)
       addDocumentNonBlocking(ordersRef, {
@@ -198,8 +292,8 @@ export default function NewOfflineOrderPage() {
         items: orderItems,
         total: pkg!.price * qty,
         type: pkg!.type === 'daily' ? 'Daily' : 'Subscription',
-        slot: timeSlot,
-        deliveryTime: `${timeValue} ${timePeriod}`,
+        slot: calculatedSlot,
+        deliveryTime: calculatedDeliveryTime,
         status: 'Pending',
         paymentStatus: 'pending',
         referenceDate: calculatedRefDate,
@@ -309,6 +403,14 @@ export default function NewOfflineOrderPage() {
             <CardContent className="space-y-6">
               <div className="w-full">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <div className="mb-6">
+                    <Input 
+                      placeholder="Search packages by name..." 
+                      value={packageSearch} 
+                      onChange={(e) => setPackageSearch(e.target.value)}
+                      className="h-12 rounded-2xl bg-secondary/20 border-none focus-visible:ring-primary/20 font-bold"
+                    />
+                  </div>
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                     <TabsList className="grid grid-cols-3 w-full sm:w-[480px] bg-secondary/20 p-1 rounded-2xl h-12">
                       <TabsTrigger value="all" className="rounded-xl font-bold h-10 data-[state=active]:bg-primary data-[state=active]:text-white">All</TabsTrigger>
@@ -326,6 +428,38 @@ export default function NewOfflineOrderPage() {
                   ) : (
                     <>
                       <TabsContent value="all" className="space-y-4 outline-none animate-in fade-in duration-300">
+                        <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20 mb-6">
+                            <div className="space-y-4">
+                              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Range Filter</Label>
+                              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                                <Popover open={isAllStartPopoverOpen} onOpenChange={setIsAllStartPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                      <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                      {allStartDate ? format(allStartDate, "PPP") : <span>Start Date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                    <Calendar mode="single" selected={allStartDate} onSelect={(date) => { setAllStartDate(date); setIsAllStartPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                  </PopoverContent>
+                                </Popover>
+                                <Popover open={isAllEndPopoverOpen} onOpenChange={setIsAllEndPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                      <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                      {allEndDate ? format(allEndDate, "PPP") : <span>End Date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                    <Calendar mode="single" selected={allEndDate} onSelect={(date) => { setAllEndDate(date); setIsAllEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                  </PopoverContent>
+                                </Popover>
+                                {(allStartDate || allEndDate) && (
+                                  <Button variant="ghost" onClick={() => { setAllStartDate(undefined); setAllEndDate(undefined); }} className="text-xs font-bold text-destructive hover:text-destructive/80">Clear</Button>
+                                )}
+                              </div>
+                            </div>
+                        </div>
                         {sortedAllPackages.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {sortedAllPackages.map((pkg) => (
@@ -384,30 +518,36 @@ export default function NewOfflineOrderPage() {
                       </TabsContent>
 
                       <TabsContent value="daily" className="space-y-4 outline-none animate-in fade-in duration-300">
-                        {/* Reference Date and Target Delivery Date specifically for Daily Packages */}
-                        <div className="flex flex-col md:flex-row gap-4 mb-6 bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20">
-                          <div className="space-y-2 flex-1">
-                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Reference Date (When Given)</Label>
-                            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                              <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm", !selectedDate && "text-muted-foreground")}>
-                                  <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
-                                <Calendar mode="single" selected={selectedDate} onSelect={(date) => {
-                                  setSelectedDate(date);
-                                  setIsDatePickerOpen(false);
-                                }} initialFocus className="rounded-3xl" />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                          <div className="space-y-2 flex-1">
-                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Target Delivery Date</Label>
-                            <div className="h-12 bg-green-50/50 border border-green-200 rounded-xl flex items-center px-4 gap-2 text-green-700 font-bold shadow-sm">
-                              <Sparkles className="w-4 h-4 text-green-500" />
-                              <span>{targetDateLabel}</span>
+                        {/* Date Range Filter for Daily Packages */}
+                        <div className="bg-secondary/10 p-5 rounded-[1.5rem] border border-secondary/20 mb-6">
+                          <div className="space-y-4">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Range Filter</Label>
+                            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                              <Popover open={isDailyStartPopoverOpen} onOpenChange={setIsDailyStartPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                    {dailyRangeStartDate ? format(dailyRangeStartDate, "PPP") : <span>Start Date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                  <Calendar mode="single" selected={dailyRangeStartDate} onSelect={(date) => { setDailyRangeStartDate(date); setIsDailyStartPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                </PopoverContent>
+                              </Popover>
+                              <Popover open={isDailyEndPopoverOpen} onOpenChange={setIsDailyEndPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full h-12 justify-start text-left font-bold rounded-xl bg-white border-none px-4 shadow-sm">
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                    {dailyRangeEndDate ? format(dailyRangeEndDate, "PPP") : <span>End Date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                  <Calendar mode="single" selected={dailyRangeEndDate} onSelect={(date) => { setDailyRangeEndDate(date); setIsDailyEndPopoverOpen(false); }} initialFocus className="rounded-3xl" />
+                                </PopoverContent>
+                              </Popover>
+                              {(dailyRangeStartDate || dailyRangeEndDate) && (
+                                <Button variant="ghost" onClick={() => { setDailyRangeStartDate(undefined); setDailyRangeEndDate(undefined); }} className="text-xs font-bold text-destructive hover:text-destructive/80">Clear</Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -598,15 +738,105 @@ export default function NewOfflineOrderPage() {
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Selected Items</Label>
                   <div className="space-y-3 min-h-[100px]">
-                    {cartPackages.length > 0 ? cartPackages.map(({ pkg, qty }) => (
-                      <div key={pkg!.id} className="flex justify-between items-start text-sm bg-secondary/10 p-3 rounded-xl border border-secondary/20 animate-in slide-in-from-right-2">
-                        <div>
-                          <p className="font-bold">{qty}x {pkg!.name}</p>
-                          <p className="text-[10px] text-muted-foreground line-clamp-1 italic font-medium">{pkg!.dateContext}</p>
+                    {cartPackages.length > 0 ? cartPackages.map(({ pkg, qty }) => {
+                      const isDaily = pkg!.type === 'daily';
+                      return (
+                        <div key={pkg!.id} className="flex flex-col gap-3 bg-secondary/10 p-3 rounded-xl border border-secondary/20 animate-in slide-in-from-right-2">
+                          <div className="flex justify-between items-start text-sm">
+                            <div>
+                              <p className="font-bold text-accent">{qty}x {pkg!.name}</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1 italic font-medium">{pkg!.dateContext}</p>
+                            </div>
+                            <span className="font-black text-primary">Rs {pkg!.price * qty}</span>
+                          </div>
+
+                          {isDaily && (
+                            <div className="pt-2.5 border-t border-secondary/20 space-y-2.5">
+                              {/* Reference Date Picker */}
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-muted-foreground block">Reference Date (When Given)</label>
+                                <Popover 
+                                  open={!!openPopovers[`ref-${pkg!.id}`]} 
+                                  onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [`ref-${pkg!.id}`]: open }))}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full h-9 justify-start text-left font-bold rounded-xl bg-white border-secondary/30 px-3 shadow-sm text-xs">
+                                      <CalendarIcon className="mr-2 h-3.5 w-3.5 text-primary" />
+                                      {getDailyConfig(pkg!.id).referenceDate ? format(getDailyConfig(pkg!.id).referenceDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="start">
+                                    <Calendar 
+                                      mode="single" 
+                                      selected={getDailyConfig(pkg!.id).referenceDate} 
+                                      onSelect={(date) => {
+                                        if (date) {
+                                          updateDailyConfig(pkg!.id, { referenceDate: date });
+                                        }
+                                        setOpenPopovers(prev => ({ ...prev, [`ref-${pkg!.id}`]: false }));
+                                      }} 
+                                      initialFocus 
+                                      className="rounded-3xl" 
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+
+                              {/* Target Delivery Date Display */}
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-muted-foreground block">Target Delivery Date</label>
+                                <div className="h-9 bg-white border border-secondary/30 rounded-xl flex items-center px-3 gap-2 text-green-700 text-xs font-bold shadow-sm">
+                                  <Check className="w-3.5 h-3.5 text-green-500" />
+                                  <span>{format(addDays(getDailyConfig(pkg!.id).referenceDate, 1), "PPP")}</span>
+                                </div>
+                              </div>
+
+                              {/* Slot and Time Pickers */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black uppercase text-muted-foreground block">Slot</label>
+                                  <Select 
+                                    value={getDailyConfig(pkg!.id).slot} 
+                                    onValueChange={(v) => updateDailyConfig(pkg!.id, { slot: v as TimeSlot })}
+                                  >
+                                    <SelectTrigger className="rounded-xl border-secondary/30 font-bold h-9 bg-white text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                      <SelectItem value="Morning">Morning</SelectItem>
+                                      <SelectItem value="Noon">Noon</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black uppercase text-muted-foreground block">Time</label>
+                                  <div className="flex gap-1">
+                                    <Input 
+                                      value={getDailyConfig(pkg!.id).timeValue} 
+                                      onChange={(e) => updateDailyConfig(pkg!.id, { timeValue: e.target.value })} 
+                                      className="rounded-xl h-9 border-secondary/30 font-bold flex-1 bg-white text-xs px-2" 
+                                      placeholder="08:30" 
+                                    />
+                                    <Select 
+                                      value={getDailyConfig(pkg!.id).timePeriod} 
+                                      onValueChange={(v) => updateDailyConfig(pkg!.id, { timePeriod: v })}
+                                    >
+                                      <SelectTrigger className="w-14 h-9 rounded-xl border-secondary/30 font-bold bg-white text-[10px] px-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="rounded-xl">
+                                        <SelectItem value="AM">AM</SelectItem>
+                                        <SelectItem value="PM">PM</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <span className="font-black text-accent">{pkg!.price * qty}</span>
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center bg-secondary/5 rounded-2xl border-2 border-dashed border-secondary">
                         <Package className="w-6 h-6 text-muted-foreground/20 mb-1" />
                         <p className="text-[10px] text-muted-foreground font-black uppercase">No Items Added</p>
@@ -620,40 +850,42 @@ export default function NewOfflineOrderPage() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t-2 border-secondary/30">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Slot</Label>
-                      <Select value={timeSlot} onValueChange={(v) => setTimeSlot(v as TimeSlot)}>
-                        <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-secondary/10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="Morning">Morning</SelectItem>
-                          <SelectItem value="Noon">Noon</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Time</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={timeValue} 
-                          onChange={(e) => setTimeValue(e.target.value)} 
-                          className="rounded-xl h-11 border-secondary font-bold flex-1 bg-secondary/10" 
-                          placeholder="08:30" 
-                        />
-                        <Select value={timePeriod} onValueChange={setTimePeriod}>
-                          <SelectTrigger className="w-20 h-11 rounded-xl border-secondary font-bold bg-secondary/10">
+                  {hasNonDailyPackages && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Global Slot</Label>
+                        <Select value={timeSlot} onValueChange={(v) => setTimeSlot(v as TimeSlot)}>
+                          <SelectTrigger className="rounded-xl border-secondary font-bold h-11 bg-secondary/10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl">
-                            <SelectItem value="AM">AM</SelectItem>
-                            <SelectItem value="PM">PM</SelectItem>
+                            <SelectItem value="Morning">Morning</SelectItem>
+                            <SelectItem value="Noon">Noon</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Global Time</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            value={timeValue} 
+                            onChange={(e) => setTimeValue(e.target.value)} 
+                            className="rounded-xl h-11 border-secondary font-bold flex-1 bg-secondary/10" 
+                            placeholder="08:30" 
+                          />
+                          <Select value={timePeriod} onValueChange={setTimePeriod}>
+                            <SelectTrigger className="w-20 h-11 rounded-xl border-secondary font-bold bg-secondary/10">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="AM">AM</SelectItem>
+                              <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-primary" />
