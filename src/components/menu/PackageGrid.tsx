@@ -7,6 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { 
   Collapsible, 
   CollapsibleContent, 
   CollapsibleTrigger 
@@ -37,9 +44,15 @@ interface PackageGridProps {
 export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], menuItems }: PackageGridProps) {
   // Track open state for monthly days to toggle icons
   const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
+  // Track selected day for scheme packages
+  const [selectedSchemeDays, setSelectedSchemeDays] = useState<Record<string, string>>({});
 
   const toggleDay = (key: string) => {
     setOpenDays(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const setSchemeDay = (pkgId: string, day: string) => {
+    setSelectedSchemeDays(prev => ({ ...prev, [pkgId]: day }));
   };
 
   return (
@@ -130,24 +143,25 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                   {pkg.type === 'monthly' ? "Subscription Roadmap" : "What's Inside"}
                 </p>
                 <div className="grid grid-cols-1 gap-3">
-                  {pkg.type === 'monthly' ? (
+                  {pkg.type === 'monthly' || pkg.type === 'scheme' ? (
                     <div className="max-h-72 overflow-y-auto pr-1.5 space-y-3 custom-scrollbar">
                       {(() => {
+                        const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
                         const itemsToRender = (() => {
-                          if (pkg.monthlyAssignments && Object.keys(pkg.monthlyAssignments).length > 0) {
-                            const sortedDates = Object.keys(pkg.monthlyAssignments)
+                          if (assignments && Object.keys(assignments).length > 0) {
+                            const sortedDates = Object.keys(assignments)
                               .filter(dateStr => {
-                                const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
+                                const itemIds = assignments?.[dateStr] || [];
                                 return itemIds.length > 0;
                               })
                               .sort();
                             return sortedDates.map((dateStr, idx) => {
-                              const itemIds = pkg.monthlyAssignments?.[dateStr] || [];
+                              const itemIds = assignments?.[dateStr] || [];
                               const items = itemIds.map(id => menuItems.find(m => m.id === id)).filter(item => item && item.show !== false);
                               return {
                                 items,
-                                label: format(parseISO(dateStr), 'EEEE, MMM dd, yyyy'),
-                                dayNumber: parseISO(dateStr).getDate()
+                                label: pkg.type === 'monthly' ? format(parseISO(dateStr), 'EEEE, MMM dd, yyyy') : dateStr,
+                                dayNumber: pkg.type === 'monthly' ? parseISO(dateStr).getDate() : dateStr
                               };
                             }).filter(x => x.items.length > 0);
                           } else {
@@ -162,6 +176,44 @@ export function PackageGrid({ packages, onOrder, orderedIds = [], pastIds = [], 
                           }
                         })();
 
+                        if (pkg.type === 'scheme') {
+                          // Scheme: Day selector dropdown
+                          const selectedDay = selectedSchemeDays[pkg.id] || (itemsToRender.length > 0 ? String(itemsToRender[0].dayNumber) : '');
+                          const selectedItemsData = itemsToRender.find(x => String(x.dayNumber) === selectedDay);
+
+                          return (
+                            <div className="space-y-4">
+                              <Select value={selectedDay} onValueChange={(v) => setSchemeDay(pkg.id, v)}>
+                                <SelectTrigger className="w-full rounded-xl border-secondary/30 font-bold bg-white">
+                                  <SelectValue placeholder="Select a day" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  {itemsToRender.map(item => (
+                                    <SelectItem key={item.dayNumber} value={String(item.dayNumber)}>{item.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {selectedItemsData && (
+                                <div className="space-y-2">
+                                  {selectedItemsData.items.map((item) => (
+                                    <div key={item.id} className="flex gap-3 bg-secondary/10 p-2 rounded-xl">
+                                      <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-primary/20">
+                                        <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
+                                      </div>
+                                      <div className="flex-1 self-center">
+                                        <p className="text-xs font-black text-accent">{item.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{item.type}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        
+                        // Monthly: Collapsible list
                         return itemsToRender.map(({ items, label, dayNumber }) => {
                           const dayKey = `${pkg.id}-day-${dayNumber}`;
                           const isOpen = !!openDays[dayKey];
