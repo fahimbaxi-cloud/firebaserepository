@@ -266,7 +266,7 @@ export default function DeliveryDashboard() {
             if (isMonthCorrect) {
               const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
               if (assignments) {
-                const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : String(targetDate.getDate());
+                const dateKey = pkg.type === 'monthly' || pkg.type === 'scheme' ? format(targetDate, 'yyyy-MM-dd') : String(targetDate.getDate());
                 const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;
               } else {
