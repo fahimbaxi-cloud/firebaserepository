@@ -259,14 +259,15 @@ export default function DeliveryDashboard() {
       
       if (o.type === 'Subscription') {
         const pkg = allPackages.find(p => p.name === o.packageName);
-        if (pkg && pkg.type === 'monthly') {
+        if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme')) {
           try {
             const targetMonthStr = format(targetDate, 'MMMM yyyy');
             const isMonthCorrect = pkg.dateContext === targetMonthStr;
             if (isMonthCorrect) {
-              if (pkg.monthlyAssignments) {
-                const dateKey = format(targetDate, 'yyyy-MM-dd');
-                const dayItems = pkg.monthlyAssignments[dateKey] || [];
+              const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
+              if (assignments) {
+                const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : String(targetDate.getDate());
+                const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;
               } else {
                 isCorrectDate = pkg.items && pkg.items.length > 0;
