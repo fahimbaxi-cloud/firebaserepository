@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, isSameDay, parseISO, addDays, differenceInDays } from 'date-fns';
+import { format, isSameDay, parseISO, addDays, differenceInDays, startOfDay } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit } from 'firebase/firestore';
 import { downloadPDF } from '@/lib/pdf-export';
@@ -265,8 +265,8 @@ export default function DeliveryDashboard() {
             if (pkg.type === 'scheme') {
               const assignments = pkg.schemeAssignments;
               if (assignments) {
-                const startDate = pkg.startDate ? parseISO(pkg.startDate) : new Date();
-                const diffDays = differenceInDays(targetDate, startDate);
+                const startDate = pkg.startDate ? startOfDay(parseISO(pkg.startDate)) : startOfDay(new Date());
+                const diffDays = differenceInDays(startOfDay(targetDate), startDate);
                 const dateKey = String(diffDays + 1);
                 const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;
