@@ -267,8 +267,9 @@ export default function DeliveryDashboard() {
               if (assignments) {
                 const startDate = pkg.startDate ? startOfDay(parseISO(pkg.startDate)) : startOfDay(new Date());
                 const diffDays = differenceInDays(startOfDay(targetDate), startDate);
-                const dateKey = String(diffDays + 1);
-                const dayItems = assignments[dateKey] || [];
+                const dateKeyByDiff = String(diffDays + 1);
+                const dateKeyByFormat = format(targetDate, 'yyyy-MM-dd');
+                const dayItems = assignments[dateKeyByDiff] || assignments[dateKeyByFormat] || [];
                 isCorrectDate = dayItems.length > 0;
               } else {
                 isCorrectDate = pkg.items && pkg.items.length > 0;
