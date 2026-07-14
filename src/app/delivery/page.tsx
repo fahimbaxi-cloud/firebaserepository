@@ -262,21 +262,32 @@ export default function DeliveryDashboard() {
         const pkg = allPackages.find(p => p.name === o.packageName);
         if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme' || pkg.type === 'daily')) {
           try {
-            const targetMonthStr = format(targetDate, 'MMMM yyyy');
-            const isMonthCorrect = pkg.type === 'scheme' || pkg.type === 'daily' || pkg.dateContext === targetMonthStr;
-            if (isMonthCorrect) {
-              const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
+            if (pkg.type === 'scheme') {
+              const assignments = pkg.schemeAssignments;
               if (assignments) {
-                const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : 
-                                pkg.type === 'scheme' ? String(differenceInDays(targetDate, parseISO(pkg.startDate)) + 1) : 
-                                String(targetDate.getDate());
+                const startDate = pkg.startDate ? parseISO(pkg.startDate) : new Date();
+                const diffDays = differenceInDays(targetDate, startDate);
+                const dateKey = String(diffDays + 1);
                 const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;
               } else {
                 isCorrectDate = pkg.items && pkg.items.length > 0;
               }
             } else {
-              isCorrectDate = false;
+              const targetMonthStr = format(targetDate, 'MMMM yyyy');
+              const isMonthCorrect = pkg.type === 'daily' || pkg.dateContext === targetMonthStr;
+              if (isMonthCorrect) {
+                const assignments = pkg.monthlyAssignments;
+                if (assignments) {
+                  const dateKey = format(targetDate, 'yyyy-MM-dd');
+                  const dayItems = assignments[dateKey] || [];
+                  isCorrectDate = dayItems.length > 0;
+                } else {
+                  isCorrectDate = pkg.items && pkg.items.length > 0;
+                }
+              } else {
+                isCorrectDate = false;
+              }
             }
           } catch (e) {
             console.error(e);
