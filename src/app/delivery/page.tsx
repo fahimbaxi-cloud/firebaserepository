@@ -281,9 +281,13 @@ export default function DeliveryDashboard() {
           }
         }
       } else if (o.type === 'Daily') {
-        const orderDate = o.referenceDate ? parseISO(o.referenceDate) : (typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt);
-        const targetDeliveryDate = addDays(orderDate, 1);
-        isCorrectDate = !selectedDate || isSameDay(targetDeliveryDate, selectedDate);
+        if (o.referenceDate) {
+          const orderDate = parseISO(o.referenceDate);
+          const targetDeliveryDate = addDays(orderDate, 1);
+          isCorrectDate = isSameDay(targetDeliveryDate, selectedDate || new Date());
+        } else {
+          isCorrectDate = false;
+        }
       } else {
         const orderDate = o.referenceDate ? parseISO(o.referenceDate) : (typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt);
         isCorrectDate = !selectedDate || isSameDay(orderDate, selectedDate);
