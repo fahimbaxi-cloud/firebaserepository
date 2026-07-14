@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, isSameDay, parseISO, addDays } from 'date-fns';
+import { format, isSameDay, parseISO, addDays, differenceInDays } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit } from 'firebase/firestore';
 import { downloadPDF } from '@/lib/pdf-export';
@@ -213,10 +213,11 @@ export default function DeliveryDashboard() {
     if (!allPackages || !menu) return [];
     const pkg = allPackages.find((p: any) => p.name === order.packageName);
     if (pkg) {
-      if (pkg.type === 'monthly') {
-        if (pkg.monthlyAssignments) {
-          const dateKey = format(targetDate, 'yyyy-MM-dd');
-          const dayItems = pkg.monthlyAssignments[dateKey] || [];
+      if (pkg.type === 'monthly' || pkg.type === 'scheme') {
+        const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
+        if (assignments) {
+          const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : String(differenceInDays(targetDate, parseISO(pkg.startDate)) + 1);
+          const dayItems = assignments[dateKey] || [];
           if (dayItems.length > 0) {
             return dayItems.map((id: string) => {
               const menuItem = menu.find((m: any) => m.id === id);
@@ -266,7 +267,9 @@ export default function DeliveryDashboard() {
             if (isMonthCorrect) {
               const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
               if (assignments) {
-                const dateKey = pkg.type === 'monthly' || pkg.type === 'scheme' ? format(targetDate, 'yyyy-MM-dd') : String(targetDate.getDate());
+                const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : 
+                                pkg.type === 'scheme' ? String(differenceInDays(targetDate, parseISO(pkg.startDate)) + 1) : 
+                                String(targetDate.getDate());
                 const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;
               } else {
