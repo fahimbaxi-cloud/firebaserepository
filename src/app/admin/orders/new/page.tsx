@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,23 +15,17 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { User, TimeSlot, BroadcastPackage, MenuItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { format, addDays, isValid, parse, parseISO } from 'date-fns';
+import { format, addDays, isValid, parse } from 'date-fns';
 import { Search, Package, User as UserIcon, MapPin, Clock, ArrowLeft, CheckCircle2, Calendar as CalendarIcon, Info, Minus, Plus, ShoppingCart, Loader2, Sparkles, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useDoc, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function NewOfflineOrderPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const editOrderId = searchParams.get('edit');
   const firestore = useFirestore();
   const { toast } = useToast();
-  
-  // Fetch order if editing
-  const { data: order } = useDoc(editOrderId ? `orders/${editOrderId}` : '');
-  const [isInitialized, setIsInitialized] = useState(false);
   
   // Firestore Data - Real-time listeners for live data sync
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
@@ -56,45 +50,6 @@ export default function NewOfflineOrderPage() {
   const [timeValue, setTimeValue] = useState('08:30');
   const [timePeriod, setTimePeriod] = useState('AM');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
-  const [orderStatus, setOrderStatus] = useState('Pending');
-  const [refMonth, setRefMonth] = useState(format(new Date(), 'MMMM'));
-  const [refYear, setRefYear] = useState(format(new Date(), 'yyyy'));
-
-  // Pre-fill state if editing
-  useEffect(() => {
-    if (order && allUsers.length > 0 && broadcastPackages.length > 0 && !isInitialized) {
-      const user = allUsers.find(u => u.id === order.customerId);
-      setSelectedUser(user || null);
-      
-      const date = order.referenceDate ? parseISO(order.referenceDate) : new Date();
-      setSelectedDate(isValid(date) ? date : new Date());
-
-      const pkg = broadcastPackages.find(p => p.name === order.packageName);
-      if (pkg) {
-        setSelectedPackages({ [pkg.id]: order.packageQuantity });
-      }
-
-      setDeliveryAddress(order.address);
-      setTimeSlot(order.slot);
-      
-      const timeParts = (order.deliveryTime || '08:30 AM').split(' ');
-      setTimeValue(timeParts[0] || '08:30');
-      setTimePeriod(timeParts[1] || 'AM');
-      setOrderStatus(order.status || 'Pending');
-      
-      if (order.type === 'Subscription') {
-        setActiveTab('scheme');
-        setRefMonth(format(date, "MMMM"));
-        setRefYear(format(date, "yyyy"));
-      } else {
-        setActiveTab('daily');
-        setSelectedDate(date);
-      }
-
-      setIsInitialized(true);
-    }
-  }, [order, allUsers, broadcastPackages, isInitialized]);
 
   // Daily Package Custom Logistics Configurations
   const [dailyConfigs, setDailyConfigs] = useState<Record<string, {
@@ -294,7 +249,9 @@ export default function NewOfflineOrderPage() {
       return;
     }
 
-    const orderDataList = cartPackages.map(({ pkg, qty }) => {
+    const ordersRef = collection(firestore, 'orders');
+    
+    cartPackages.forEach(({ pkg, qty }) => {
       // Cross-reference menu items from Firestore to build full order details
       const orderItems = (pkg!.items || []).map(itemId => {
         const m = menuItems.find(mi => mi.id === itemId);
@@ -324,7 +281,8 @@ export default function NewOfflineOrderPage() {
         calculatedTargetDeliveryDate = `${pkg!.startDate} to ${pkg!.endDate}`;
       }
 
-      return {
+      // Save to Firestore 'orders' collection (Same structure as online entry)
+      addDocumentNonBlocking(ordersRef, {
         customerId: selectedUser.id,
         customerName: `${selectedUser.firstName} ${selectedUser.lastName}`,
         packageName: pkg!.name,
@@ -336,22 +294,15 @@ export default function NewOfflineOrderPage() {
         type: pkg!.type === 'daily' ? 'Daily' : 'Subscription',
         slot: calculatedSlot,
         deliveryTime: calculatedDeliveryTime,
-        status: orderStatus,
+        status: 'Pending',
         paymentStatus: 'pending',
         referenceDate: calculatedRefDate,
         targetDeliveryDate: calculatedTargetDeliveryDate,
-        createdAt: order?.createdAt || new Date().toISOString()
-      };
+        createdAt: new Date().toISOString()
+      });
     });
 
-    if (editOrderId) {
-      updateDocumentNonBlocking(`orders/${editOrderId}`, orderDataList[0]);
-      toast({ title: "Order Updated", description: "The order has been updated in Firestore." });
-    } else {
-      const ordersRef = collection(firestore, 'orders');
-      orderDataList.forEach(data => addDocumentNonBlocking(ordersRef, data));
-      toast({ title: "Orders Recorded", description: `Offline order for ${selectedUser.firstName} has been saved to Firestore.` });
-    }
+    toast({ title: "Orders Recorded", description: `Offline order for ${selectedUser.firstName} has been saved to Firestore.` });
     router.push('/admin');
   };
 
@@ -956,7 +907,7 @@ export default function NewOfflineOrderPage() {
                 disabled={!selectedUser || cartPackages.length === 0}
               >
                 <ShoppingCart className="w-6 h-6 mr-3" />
-                {editOrderId ? 'Update Order' : 'Confirm Order'}
+                Confirm Order
               </Button>
             </CardContent>
           </Card>
