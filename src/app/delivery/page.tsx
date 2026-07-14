@@ -260,19 +260,15 @@ export default function DeliveryDashboard() {
       
       if (o.type === 'Subscription') {
         const pkg = allPackages.find(p => p.name === o.packageName);
-        if (pkg) {
+        if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme')) {
           try {
-            const startDate = pkg.startDate ? parseISO(pkg.startDate) : null;
-            const endDate = pkg.endDate ? parseISO(pkg.endDate) : null;
-            
-            // Date range check
-            const isDateInRange = (!startDate || targetDate >= startDate) && (!endDate || targetDate <= endDate);
-            
-            if (isDateInRange) {
-              const assignments = pkg.monthlyAssignments || pkg.schemeAssignments;
+            const targetMonthStr = format(targetDate, 'MMMM yyyy');
+            const isMonthCorrect = pkg.dateContext === targetMonthStr;
+            if (isMonthCorrect) {
+              const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
               if (assignments) {
                 const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : 
-                                pkg.type === 'scheme' ? String(differenceInDays(targetDate, startDate || targetDate) + 1) : 
+                                pkg.type === 'scheme' ? String(differenceInDays(targetDate, parseISO(pkg.startDate)) + 1) : 
                                 String(targetDate.getDate());
                 const dayItems = assignments[dateKey] || [];
                 isCorrectDate = dayItems.length > 0;

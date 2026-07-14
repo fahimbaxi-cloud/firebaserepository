@@ -146,6 +146,7 @@ export default function NewOfflineOrderPage() {
   };
 
   // Scheme Date States
+  const [activeTab, setActiveTab] = useState('all');
   const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
   const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
   const [isStartPopoverOpen, setIsStartPopoverOpen] = useState(false);
