@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO, addDays } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit } from 'firebase/firestore';
 import { downloadPDF } from '@/lib/pdf-export';
@@ -280,6 +280,10 @@ export default function DeliveryDashboard() {
             isCorrectDate = false;
           }
         }
+      } else if (o.type === 'Daily') {
+        const orderDate = o.referenceDate ? parseISO(o.referenceDate) : (typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt);
+        const targetDeliveryDate = addDays(orderDate, 1);
+        isCorrectDate = !selectedDate || isSameDay(targetDeliveryDate, selectedDate);
       } else {
         const orderDate = o.referenceDate ? parseISO(o.referenceDate) : (typeof o.createdAt === 'string' ? parseISO(o.createdAt) : o.createdAt);
         isCorrectDate = !selectedDate || isSameDay(orderDate, selectedDate);
@@ -603,9 +607,11 @@ export default function DeliveryDashboard() {
                             <span className="text-xs font-black text-slate-900">
                               {order.type === 'Subscription' 
                                 ? format(selectedDate || new Date(), 'MMMM d, yyyy')
-                                : order.packageName 
-                                  ? (allPackages.find(p => p.name === order.packageName)?.dateContext || 'Meal Date') 
-                                  : 'Custom Date'}
+                                : order.type === 'Daily' 
+                                  ? format(addDays(parseISO(order.referenceDate), 1), 'MMMM d, yyyy')
+                                  : order.packageName 
+                                    ? (allPackages.find(p => p.name === order.packageName)?.dateContext || 'Meal Date') 
+                                    : 'Custom Date'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
