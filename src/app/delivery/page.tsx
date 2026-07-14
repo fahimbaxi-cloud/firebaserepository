@@ -260,10 +260,10 @@ export default function DeliveryDashboard() {
       
       if (o.type === 'Subscription') {
         const pkg = allPackages.find(p => p.name === o.packageName);
-        if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme')) {
+        if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme' || pkg.type === 'daily')) {
           try {
             const targetMonthStr = format(targetDate, 'MMMM yyyy');
-            const isMonthCorrect = pkg.type === 'scheme' || pkg.dateContext === targetMonthStr;
+            const isMonthCorrect = pkg.type === 'scheme' || pkg.type === 'daily' || pkg.dateContext === targetMonthStr;
             if (isMonthCorrect) {
               const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
               if (assignments) {
