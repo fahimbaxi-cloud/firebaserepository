@@ -263,7 +263,7 @@ export default function DeliveryDashboard() {
         if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme')) {
           try {
             const targetMonthStr = format(targetDate, 'MMMM yyyy');
-            const isMonthCorrect = pkg.dateContext === targetMonthStr;
+            const isMonthCorrect = pkg.type === 'scheme' || pkg.dateContext === targetMonthStr;
             if (isMonthCorrect) {
               const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
               if (assignments) {
