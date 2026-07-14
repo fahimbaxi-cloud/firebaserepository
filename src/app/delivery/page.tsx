@@ -650,12 +650,17 @@ export default function DeliveryDashboard() {
                       </TableCell>
                       <TableCell className="align-top py-6">
                         <div className="space-y-3">
-                          <Badge variant="outline" className="bg-slate-50 text-[10px] font-black border-slate-200 h-6 text-slate-700 uppercase flex items-center gap-1 px-3 w-fit">
-                            <Package className="w-3 h-3" />
-                            {order.type === 'Subscription' 
-                              ? `${order.packageName || "Subscription"} (Day ${(selectedDate || new Date()).getDate()})` 
-                              : (order.packageName || "Custom")}
-                          </Badge>
+                          {(() => {
+                            const pkg = allPackages.find((p: any) => p.name === order.packageName);
+                            return (
+                              <Badge variant="outline" className="bg-slate-50 text-[10px] font-black border-slate-200 h-6 text-slate-700 uppercase flex items-center gap-1 px-3 w-fit">
+                                <Package className="w-3 h-3" />
+                                {order.type === 'Subscription' 
+                                  ? `${order.packageName || "Subscription"} ${pkg?.type ? `(${pkg.type})` : ''} (Day ${(selectedDate || new Date()).getDate()})` 
+                                  : `${order.packageName || "Custom"} ${pkg?.type ? `(${pkg.type})` : ''}`}
+                              </Badge>
+                            );
+                          })()}
                           <div className="space-y-1.5">
                             {getPackageItems(order, selectedDate || new Date()).map((item: any, i: number) => (
                               <div key={i} className="flex items-center gap-2">{item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}<span className="text-[11px] font-bold text-slate-600">{item.quantity}x {item.name}</span></div>
@@ -733,9 +738,12 @@ export default function DeliveryDashboard() {
                       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <p className="text-xs font-bold">{selectedOrderForDetails.slot} • {selectedOrderForDetails.deliveryTime}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Package: {selectedOrderForDetails.type === 'Subscription' 
-                            ? `${selectedOrderForDetails.packageName || "Subscription"} (Day ${(selectedDate || new Date()).getDate()})` 
-                            : (selectedOrderForDetails.packageName || "Custom")}
+                          Package: {(() => {
+                            const pkg = allPackages.find((p: any) => p.name === selectedOrderForDetails.packageName);
+                            return selectedOrderForDetails.type === 'Subscription' 
+                              ? `${selectedOrderForDetails.packageName || "Subscription"} ${pkg?.type ? `(${pkg.type})` : ''} (Day ${(selectedDate || new Date()).getDate()})` 
+                              : `${selectedOrderForDetails.packageName || "Custom"} ${pkg?.type ? `(${pkg.type})` : ''}`;
+                          })()}
                         </p>
                         <p className="font-black text-blue-600 mt-2">{selectedOrderForDetails.packageQuantity || 1} Sets</p>
                       </div>
