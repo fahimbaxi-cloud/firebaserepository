@@ -35,6 +35,9 @@ export default function CustomerHome() {
   const [timePeriod, setTimePeriod] = useState('AM');
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('Morning');
   
+  const [selectedUpcomingDate, setSelectedUpcomingDate] = useState<Date | undefined>(undefined);
+  const [isUpcomingPickerOpen, setIsUpcomingPickerOpen] = useState(false);
+  
   const [activeTab, setActiveTab] = useState('all');
   const [schemeStartDate, setSchemeStartDate] = useState<Date | undefined>(undefined);
   const [schemeEndDate, setSchemeEndDate] = useState<Date | undefined>(undefined);
@@ -208,18 +211,17 @@ export default function CustomerHome() {
   }, [allPackages]);
 
   const upcomingOrder = useMemo(() => {
-    if (!currentUser || !allOrders) return null;
+    if (!currentUser || !allOrders || !allPackages || !selectedUpcomingDate) return null;
     const myOrders = allOrders.filter(o => 
       o.customerId === currentUser.id && 
       o.status !== 'Cancelled' && 
       o.status !== 'Delivered'
     );
-    return [...myOrders].sort((a, b) => {
-      const dateA = typeof a.createdAt === 'string' ? parseISO(a.createdAt) : a.createdAt;
-      const dateB = typeof b.createdAt === 'string' ? parseISO(b.createdAt) : b.createdAt;
-      return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
-    })[0];
-  }, [currentUser, allOrders]);
+    
+    return myOrders.find(order => {
+        return getPackageItems(order, selectedUpcomingDate).length > 0;
+    });
+  }, [currentUser, allOrders, allPackages, selectedUpcomingDate]);
 
   const orderedPackageIds = useMemo(() => {
     if (!currentUser || !allOrders || !allPackages) return [];
@@ -295,56 +297,142 @@ export default function CustomerHome() {
           </div>
         </header>
 
-        {upcomingOrder && (
-          <div className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Card className="rounded-[2.5rem] border-none shadow-md overflow-hidden bg-white ring-2 ring-primary/10 max-w-2xl">
               <CardContent className="p-0">
-                <div className="bg-primary/5 px-6 py-3 border-b border-primary/10 flex items-center justify-between">
+                <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Truck className="w-4 h-4 text-primary" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-primary">Upcoming Delivery</span>
                   </div>
-                  <Badge variant="outline" className="bg-white text-[9px] font-bold border-primary/20 text-primary uppercase">
-                    {upcomingOrder.status}
-                  </Badge>
+                  
+                  {selectedUpcomingDate && (
+                    <Popover open={isUpcomingPickerOpen} onOpenChange={setIsUpcomingPickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="bg-white rounded-full text-[10px] font-bold border-primary/20 text-primary uppercase">
+                          {format(selectedUpcomingDate, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedUpcomingDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setSelectedUpcomingDate(date);
+                              setIsUpcomingPickerOpen(false);
+                            }
+                          }}
+                          initialFocus
+                          className="rounded-3xl"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
-                <div className="p-6 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
-                      <PackageIcon className="w-7 h-7 text-primary/40" />
+                {!selectedUpcomingDate ? (
+                  <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2 animate-bounce">
+                      <CalendarIcon className="w-8 h-8" />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg text-accent leading-tight">{upcomingOrder.packageName || "Custom Meal"}</h3>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {getPackageItems(upcomingOrder, new Date()).map((item: any, i: number) => (
-                           <div key={i} className="flex items-center gap-1.5 bg-secondary/30 px-2 py-0.5 rounded-md">
-                              {item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}
-                              <span className="text-[10px] font-bold text-slate-700">{item.name}</span>
-                           </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span className="text-xs font-bold">{upcomingOrder.slot} • {upcomingOrder.deliveryTime}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                          <span className="text-[10px] font-black text-blue-600 uppercase">Live Tracking</span>
-                        </div>
-                      </div>
+                    <div className="max-w-md space-y-2">
+                      <h3 className="font-bold text-lg text-slate-800">Check Scheduled Delivery</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Select a date to check your scheduled packages, delivery times, and menu items.
+                      </p>
                     </div>
+                    
+                    <Popover open={isUpcomingPickerOpen} onOpenChange={setIsUpcomingPickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button className="rounded-full font-bold px-6 py-5 bg-primary text-white hover:bg-primary/95 transition-all shadow-lg shadow-primary/25 gap-2">
+                          <CalendarIcon className="w-4 h-4" />
+                          Select Date to Check
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-3xl border-none shadow-2xl" align="center">
+                        <Calendar
+                          mode="single"
+                          selected={selectedUpcomingDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setSelectedUpcomingDate(date);
+                              setIsUpcomingPickerOpen(false);
+                            }
+                          }}
+                          initialFocus
+                          className="rounded-3xl"
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                  <Link href="/customer/orders">
-                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary h-10 w-10">
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                ) : upcomingOrder ? (
+                    <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
+                          <PackageIcon className="w-7 h-7 text-primary/40" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-accent leading-tight">{upcomingOrder.packageName || "Custom Meal"}</h3>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {getPackageItems(upcomingOrder, selectedUpcomingDate).map((item: any, i: number) => (
+                               <div key={i} className="flex items-center gap-1.5 bg-secondary/30 px-2 py-0.5 rounded-md">
+                                  {item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}
+                                  <span className="text-[10px] font-bold text-slate-700">{item.name}</span>
+                               </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span className="text-xs font-bold">{upcomingOrder.slot} • {upcomingOrder.deliveryTime}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                              <span className="text-[10px] font-black text-blue-600 uppercase">Live Tracking</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full text-xs font-bold px-4"
+                          onClick={() => setSelectedUpcomingDate(undefined)}
+                        >
+                          Change Date
+                        </Button>
+                        <Link href="/customer/orders">
+                          <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary h-10 w-10">
+                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                ) : (
+                  <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-1">
+                      <PackageIcon className="w-6 h-6" />
+                    </div>
+                    <div className="max-w-sm space-y-1">
+                      <h4 className="font-bold text-base text-slate-800 font-sans">No Scheduled Delivery</h4>
+                      <p className="text-xs text-muted-foreground">
+                        There is no active subscription or delivery scheduled for {format(selectedUpcomingDate, "PPP")}.
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="rounded-full font-bold px-4 text-xs"
+                      onClick={() => setSelectedUpcomingDate(undefined)}
+                    >
+                      Choose Another Date
                     </Button>
-                  </Link>
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
-        )}
 
         <section className="space-y-12">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
