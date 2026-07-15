@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Sparkles, CalendarIcon, ChevronRight, Truck, Clock, Package as PackageIcon, Loader2 } from 'lucide-react';
+import { Bell, Sparkles, CalendarIcon, ChevronRight, Truck, Clock, Package as PackageIcon, Loader2, Leaf, Flame } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { format, getMonth, getYear, isValid, addDays, startOfDay, parse, subDays, setHours, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -100,6 +100,17 @@ export default function CustomerHome() {
       if (timeValue === '08:30') setTimeValue('12:30');
     }
   }, [timeSlot]);
+
+  const getPackageItems = (order: Order) => {
+    const pkg = allPackages.find(p => p.name === order.packageName);
+    if (pkg && pkg.items) {
+      return pkg.items.map(id => menu.find(m => m.id === id)).filter(Boolean).filter((m: any) => m.show !== false);
+    }
+    return (order.items || []).filter((item: any) => {
+      const menuItem = menu.find(m => m.id === item.menuItemId || m.name === item.name);
+      return !menuItem || menuItem.show !== false;
+    });
+  };
 
   const handleOrderClick = (pkg: BroadcastPackage) => {
     setSelectedPackage(pkg);
@@ -285,6 +296,14 @@ export default function CustomerHome() {
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-accent leading-tight">{upcomingOrder.packageName || "Custom Meal"}</h3>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {getPackageItems(upcomingOrder).map((item: any, i: number) => (
+                           <div key={i} className="flex items-center gap-1.5 bg-secondary/30 px-2 py-0.5 rounded-md">
+                              {item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}
+                              <span className="text-[10px] font-bold text-slate-700">{item.name}</span>
+                           </div>
+                        ))}
+                      </div>
                       <div className="flex items-center gap-3 mt-1.5">
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="w-3.5 h-3.5" />
