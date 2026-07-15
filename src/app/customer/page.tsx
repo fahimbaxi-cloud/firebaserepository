@@ -101,11 +101,30 @@ export default function CustomerHome() {
     }
   }, [timeSlot]);
 
-  const getPackageItems = (order: Order) => {
+  const getPackageItems = (order: Order, targetDate: Date = new Date()) => {
     const pkg = allPackages.find(p => p.name === order.packageName);
-    if (pkg && pkg.items) {
-      return pkg.items.map(id => menu.find(m => m.id === id)).filter(Boolean).filter((m: any) => m.show !== false);
+    if (pkg && (pkg.type === 'monthly' || pkg.type === 'scheme')) {
+      const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
+      if (assignments) {
+        let dayItems: any[] = [];
+        if (pkg.type === 'monthly') {
+          const dateKey = format(targetDate, 'yyyy-MM-dd');
+          dayItems = assignments[dateKey] || [];
+        } else if (pkg.type === 'scheme') {
+          const startDate = pkg.startDate ? startOfDay(parseISO(pkg.startDate)) : startOfDay(new Date());
+          const target = startOfDay(targetDate);
+          const diffDays = differenceInDays(target, startDate);
+          const dateKeyByDiff = String(diffDays + 1);
+          const dateKeyByFormat = format(targetDate, 'yyyy-MM-dd');
+          dayItems = assignments[dateKeyByDiff] || assignments[dateKeyByFormat] || [];
+        }
+        
+        if (dayItems.length > 0) {
+          return dayItems.map((id: string) => menu.find((m: any) => m.id === id)).filter(Boolean);
+        }
+      }
     }
+    
     return (order.items || []).filter((item: any) => {
       const menuItem = menu.find(m => m.id === item.menuItemId || m.name === item.name);
       return !menuItem || menuItem.show !== false;
@@ -297,7 +316,7 @@ export default function CustomerHome() {
                     <div>
                       <h3 className="font-bold text-lg text-accent leading-tight">{upcomingOrder.packageName || "Custom Meal"}</h3>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {getPackageItems(upcomingOrder).map((item: any, i: number) => (
+                        {getPackageItems(upcomingOrder, new Date()).map((item: any, i: number) => (
                            <div key={i} className="flex items-center gap-1.5 bg-secondary/30 px-2 py-0.5 rounded-md">
                               {item.type === 'Veg' ? <Leaf className="w-3 h-3 text-green-500" /> : <Flame className="w-3 h-3 text-red-500" />}
                               <span className="text-[10px] font-bold text-slate-700">{item.name}</span>
