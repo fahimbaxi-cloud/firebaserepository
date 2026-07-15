@@ -216,8 +216,19 @@ export default function DeliveryDashboard() {
       if (pkg.type === 'monthly' || pkg.type === 'scheme') {
         const assignments = pkg.type === 'monthly' ? pkg.monthlyAssignments : pkg.schemeAssignments;
         if (assignments) {
-          const dateKey = pkg.type === 'monthly' ? format(targetDate, 'yyyy-MM-dd') : String(differenceInDays(targetDate, parseISO(pkg.startDate)) + 1);
-          const dayItems = assignments[dateKey] || [];
+          let dayItems: any[] = [];
+          if (pkg.type === 'monthly') {
+            const dateKey = format(targetDate, 'yyyy-MM-dd');
+            dayItems = assignments[dateKey] || [];
+          } else if (pkg.type === 'scheme') {
+            const startDate = pkg.startDate ? startOfDay(parseISO(pkg.startDate)) : startOfDay(new Date());
+            const target = startOfDay(targetDate);
+            const diffDays = differenceInDays(target, startDate);
+            const dateKeyByDiff = String(diffDays + 1);
+            const dateKeyByFormat = format(targetDate, 'yyyy-MM-dd');
+            dayItems = assignments[dateKeyByDiff] || assignments[dateKeyByFormat] || [];
+          }
+          
           if (dayItems.length > 0) {
             return dayItems.map((id: string) => {
               const menuItem = menu.find((m: any) => m.id === id);
